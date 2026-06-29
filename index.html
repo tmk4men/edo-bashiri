@@ -4,6 +4,25 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>江戸走り 〜飛脚リズム〜</title>
+<meta name="description" content="流行りの「江戸走り」をテーマにしたミニゲーム。一定のリズムでタップして飛脚を走らせ、岩や桶は長押しでジャンプ。横画面で遊ぼう！">
+<meta name="theme-color" content="#241a3e">
+
+<!-- OGP / Open Graph -->
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="江戸走り 〜飛脚リズム〜">
+<meta property="og:title" content="江戸走り 〜飛脚リズム〜">
+<meta property="og:description" content="流行りの「江戸走り」をテーマにしたリズム・ミニゲーム。トン・トン・トンと一定のリズムでタップして東海道を走破せよ！">
+<meta property="og:url" content="https://tmk4men.github.io/edo-bashiri/">
+<meta property="og:image" content="https://tmk4men.github.io/edo-bashiri/ogp.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:locale" content="ja_JP">
+
+<!-- Twitter Card -->
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="江戸走り 〜飛脚リズム〜">
+<meta name="twitter:description" content="流行りの「江戸走り」をテーマにしたリズム・ミニゲーム。横画面で東海道を走破せよ！">
+<meta name="twitter:image" content="https://tmk4men.github.io/edo-bashiri/ogp.png">
 <style>
   :root{
     --gold:#ffcf3f; --gold2:#ffb01f; --ink:#241a12;
@@ -27,7 +46,8 @@
   @keyframes fadeIn{from{opacity:0;transform:translateY(14px);}to{opacity:1;transform:none;}}
 
   /* ===== タイトル ===== */
-  .emblem{font-size:clamp(30px,9vw,46px);}
+  .emblem{font-size:clamp(28px,8vw,44px);font-weight:800;letter-spacing:6px;color:#ffe;
+    display:flex;align-items:center;justify-content:center;gap:14px;}
   .title{position:relative;font-size:clamp(46px,16vw,118px);font-weight:900;line-height:.95;letter-spacing:4px;
     color:var(--gold);
     text-shadow:0 2px 0 #b56200,0 4px 0 #8b2e00,0 6px 0 #6e2400,0 10px 26px rgba(0,0,0,.6),0 0 34px rgba(255,180,0,.45);}
@@ -94,26 +114,83 @@
   }
   /* キーボード操作時のフォーカス可視化 */
   .btn:focus-visible{outline:3px solid #fff;outline-offset:4px;}
+
+  /* 横画面の強制：縦持ち時に回転を促す */
+  .rotate{position:absolute;inset:0;z-index:40;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;
+    background:radial-gradient(120% 90% at 50% 40%,#2a1f4a,#0b0816);color:#fff;text-align:center;
+    padding:max(20px,env(safe-area-inset-top)) 24px max(20px,env(safe-area-inset-bottom));}
+  .rotate.hidden{display:none;}
+  .rot-svg{width:84px;height:84px;transform-origin:50% 50%;animation:rothint 1.9s ease-in-out infinite;}
+  @keyframes rothint{0%,18%{transform:rotate(-8deg);}55%,72%{transform:rotate(82deg);}100%{transform:rotate(-8deg);}}
+  .rot-text{font-size:clamp(20px,7vw,30px);font-weight:900;color:var(--gold);text-shadow:0 2px 0 #8b2e00;}
+  .rot-sub{font-size:clamp(12px,4vw,15px);opacity:.82;line-height:1.6;}
+  @media (prefers-reduced-motion:reduce){.rot-svg{animation:none;transform:rotate(60deg);}}
+
+  /* SVGアイコン共通 */
+  .ico{width:1.4em;height:1.4em;vertical-align:-0.32em;}
+  .ico-lantern{width:0.9em;height:1.25em;vertical-align:-0.22em;}
+  .seal{width:1.1em;height:1.1em;vertical-align:-0.18em;margin-right:6px;}
+  .ctl .ico{width:1.35em;height:1.35em;margin-right:2px;}
 </style>
 </head>
 <body>
 <div id="wrap">
   <canvas id="game"></canvas>
 
+  <!-- 横画面の強制（縦持ち時に表示） -->
+  <div id="rotate" class="rotate hidden">
+    <svg class="rot-svg" viewBox="0 0 96 96" aria-hidden="true">
+      <rect x="35" y="18" width="38" height="64" rx="7" fill="none" stroke="#ffcf3f" stroke-width="4"/>
+      <rect x="42" y="27" width="24" height="42" rx="2" fill="#ffcf3f" opacity="0.18"/>
+      <circle cx="54" cy="76" r="2.4" fill="#ffcf3f"/>
+      <path d="M14 70 A34 34 0 0 1 24 30" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round"/>
+      <path d="M24 22 l4 12 l-13 -1 z" fill="#fff"/>
+    </svg>
+    <div class="rot-text">横向きにしてください</div>
+    <div class="rot-sub">この遊びは横画面でお楽しみください</div>
+  </div>
+
   <!-- タイトル -->
   <div id="titleScreen" class="overlay">
-    <div class="emblem">🏮 飛 脚 🏮</div>
+    <div class="emblem">
+      <svg class="ico-lantern" viewBox="0 0 40 54" aria-hidden="true">
+        <rect x="15" y="1" width="10" height="5" rx="2" fill="#7a5128"/><rect x="17" y="0" width="6" height="3" fill="#caa15a"/>
+        <ellipse cx="20" cy="29" rx="18" ry="23" fill="#d8352a" stroke="#9e1d16" stroke-width="1.5"/>
+        <g stroke="#a51d16" stroke-width="2" opacity="0.5"><path d="M3 18 H37"/><path d="M1.5 29 H38.5"/><path d="M3 40 H37"/></g>
+        <ellipse cx="13" cy="22" rx="3.2" ry="8" fill="#fff" opacity="0.18"/>
+        <rect x="15" y="48" width="10" height="5" rx="2" fill="#7a5128"/><path d="M20 53 v4" stroke="#c9a24a" stroke-width="2"/>
+      </svg>
+      <span>飛脚</span>
+      <svg class="ico-lantern" viewBox="0 0 40 54" aria-hidden="true">
+        <rect x="15" y="1" width="10" height="5" rx="2" fill="#7a5128"/><rect x="17" y="0" width="6" height="3" fill="#caa15a"/>
+        <ellipse cx="20" cy="29" rx="18" ry="23" fill="#d8352a" stroke="#9e1d16" stroke-width="1.5"/>
+        <g stroke="#a51d16" stroke-width="2" opacity="0.5"><path d="M3 18 H37"/><path d="M1.5 29 H38.5"/><path d="M3 40 H37"/></g>
+        <ellipse cx="13" cy="22" rx="3.2" ry="8" fill="#fff" opacity="0.18"/>
+        <rect x="15" y="48" width="10" height="5" rx="2" fill="#7a5128"/><path d="M20 53 v4" stroke="#c9a24a" stroke-width="2"/>
+      </svg>
+    </div>
     <div class="title">江戸走り</div>
     <div class="ribbon">〜 飛 脚 リ ズ ム 〜</div>
     <div class="card">
       極意は「あわてず、<b>一定のリズム</b>で」。<br>
-      足跡 👣 が足元の輪に重なった<b>瞬間にタップ</b>で一歩。<br>
-      リズムが合うほど<b>コンボで加速</b>。<br>
-      行く手の岩や桶は<b>長押しでジャンプ</b>して飛び越えろ！
+      画面を<b>トン・トン・トンと一定のテンポでタップ</b>すれば走る。<br>
+      テンポが乱れると<b>つんのめってコケる</b>ので、勘でリズムよく！<br>
+      行く手の岩や桶は<b>長押しでジャンプ</b>して飛び越えろ。
     </div>
     <div class="controls">
-      <div class="ctl"><span class="k">👆</span>タップ＝一歩</div>
-      <div class="ctl"><span class="k">✊</span>長押し＝ジャンプ</div>
+      <div class="ctl">
+        <svg class="ico" viewBox="0 0 48 48" aria-hidden="true">
+          <path d="M11 15 a13 13 0 0 1 26 0" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" opacity="0.85"/>
+          <path d="M6 11 a18 18 0 0 1 36 0" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" opacity="0.45"/>
+          <circle cx="24" cy="28" r="6.5" fill="#ffcf3f"/>
+        </svg>タップ＝一歩
+      </div>
+      <div class="ctl">
+        <svg class="ico" viewBox="0 0 48 48" aria-hidden="true">
+          <circle cx="24" cy="24" r="13" fill="none" stroke="#fff" stroke-width="2.6" stroke-dasharray="58 24" stroke-linecap="round" opacity="0.85" transform="rotate(-90 24 24)"/>
+          <circle cx="24" cy="24" r="6.5" fill="#ffcf3f"/>
+        </svg>長押し＝ジャンプ
+      </div>
     </div>
     <button id="startBtn" class="btn">走り出す</button>
     <div class="hint">スマホはタップ／PCはクリック・スペースキー</div>
@@ -174,22 +251,22 @@
 
   let groundY=0,hitX=0;
 
-  // タイミング
-  const TRAVEL=1500;
-  let beatInterval=620, nextBeat=0;
-  let markers=[];
-  const W_PERFECT=70,W_GOOD=150,W_MISS=230;
-
   // ランナー
   const runner={x:0,baseY:0,y:0,w:50,h:70,legPhase:0,bounce:0,tilt:0,tiltTarget:0,vy:0,onGround:true};
   let gravity=0.82, jumpPower=-16.5;
 
+  // リズム（外部ビートは見せず、プレイヤー自身のテンポの安定度で判定）
+  let lastStepAt=-1;        // 直近の一歩の時刻
+  let rhythmInterval=0;     // 確立したリズムの間隔(ms)
+  let needSeed=true;        // 次の一歩でリズムを引き直す（ノーペナルティ）
+  const MIN_INT=240, MAX_INT=820;   // 許容テンポ範囲
+
   // 入力
-  let isPressing=false, pressStart=0, didJumpThisPress=false, pendingTap=false;
-  const HOLD_MS=150;
+  let isPressing=false, pressStart=0, didJumpThisPress=false, jumpArmed=false;
+  const HOLD_MS=230;        // これ以上の長押しでジャンプ（短いタップは必ず一歩）
 
   // 進行
-  let distance=0, combo=0, maxCombo=0, balance=100;
+  let distance=0, combo=0, maxCombo=0, balance=100, lastMilestone=0;
   let speedFx=0, scrollX=0, hillX=0, shakeT=0;
   let perfectCount=0, stepCount=0, jumpCount=0;
   let clouds=[], hills=[], petals=[], particles=[], popups=[];
@@ -203,6 +280,9 @@
 
   const nowMs=()=>performance.now();
 
+  // リザルトの朱印（SVG）
+  const SEAL='<svg class="seal" viewBox="0 0 32 32" aria-hidden="true"><rect x="2" y="2" width="28" height="28" rx="6" fill="#c2362b"/><rect x="2" y="2" width="28" height="28" rx="6" fill="none" stroke="#8e211a" stroke-width="2"/><path d="M16 7 v18 M9 12 h14 M10 19 h12" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/></svg>';
+
   function spawnAmbient(){
     clouds=[];for(let i=0;i<4;i++)clouds.push({x:Math.random()*W,y:H*(0.08+Math.random()*0.26),s:0.2+Math.random()*0.35,r:26+Math.random()*30});
     hills=[];for(let i=0;i<6;i++)hills.push({x:i*W*0.45,r:H*(0.13+Math.random()*0.06)});
@@ -214,46 +294,53 @@
     resize();
     runner.x=hitX;runner.y=runner.baseY=groundY-runner.h;
     runner.legPhase=0;runner.bounce=0;runner.tilt=0;runner.tiltTarget=0;runner.vy=0;runner.onGround=true;
-    distance=0;combo=0;maxCombo=0;balance=100;
+    distance=0;combo=0;maxCombo=0;balance=100;lastMilestone=0;
     speedFx=0;scrollX=0;hillX=0;shakeT=0;flash=0;redFlash=0;
     perfectCount=0;stepCount=0;jumpCount=0;
-    beatInterval=620;markers=[];popups=[];particles=[];obstacles=[];obsTimer=0;
+    popups=[];particles=[];obstacles=[];obsTimer=0;
+    lastStepAt=-1;rhythmInterval=0;needSeed=true;
     spawnAmbient();
     intro=2600;introLabel='3';
-    nextBeat=nowMs()+intro+10;
   }
 
   // ===== 入力処理 =====
+  // タップ＝必ず一歩（押した瞬間に即時判定）。長押しはそれに加えてジャンプ。
   function pressDown(){
     if(state!==STATE.PLAY)return;
     if(intro>0)return;
-    // 押した瞬間はまだ確定しない：短ければ一歩、長ければジャンプ
-    isPressing=true;pressStart=nowMs();didJumpThisPress=false;pendingTap=true;
+    isPressing=true;pressStart=nowMs();didJumpThisPress=false;jumpArmed=true;
+    tap(pressStart);
   }
-  function pressUp(){
-    // しきい値より前に離した＝一歩。判定は「押した瞬間の時刻」で行いリズム精度を保つ
-    if(pendingTap){pendingTap=false;tap(pressStart);}
-    isPressing=false;
-  }
-  function pressCancel(){pendingTap=false;isPressing=false;}
+  function pressUp(){isPressing=false;jumpArmed=false;}
+  function pressCancel(){isPressing=false;jumpArmed=false;}
 
   function tap(t){
-    let target=null,bestAbs=Infinity;
-    for(const m of markers){if(m.hit||m.missed)continue;const d=Math.abs(t-m.arrive);if(d<bestAbs){bestAbs=d;target=m;}}
-    if(target&&bestAbs<=W_MISS){
-      target.hit=true;const signed=t-target.arrive;
-      if(bestAbs<=W_PERFECT)step('PERFECT',signed);
-      else if(bestAbs<=W_GOOD)step('GOOD',signed);
-      else stumble(signed<0?'早い！':'遅い！');
+    // 最初の一歩、または仕切り直し：リズムを引き直すだけ（ノーペナルティ）
+    if(needSeed || lastStepAt<0){
+      needSeed=false;lastStepAt=t;
+      if(rhythmInterval===0)rhythmInterval=(MIN_INT+MAX_INT)/2;
+      step('GOOD');return;
+    }
+    const interval=t-lastStepAt;
+    lastStepAt=t;
+    const ratio=interval/rhythmInterval;
+    if(ratio<0.55){            // 速すぎ＝連打でつんのめる
+      stumble('あわてた！');needSeed=true;
+    }else if(ratio>1.7){       // 遅すぎ＝足が止まる
+      stumble('もたつき！');needSeed=true;
     }else{
-      stumble('勇み足！');
+      // 一定のリズムを刻めている
+      if(ratio>=0.85&&ratio<=1.18)step('PERFECT');
+      else step('GOOD');
+      // テンポにゆっくり追従（自分の好きな速さで走れる）
+      rhythmInterval=Math.max(MIN_INT,Math.min(MAX_INT, rhythmInterval*0.6+interval*0.4));
     }
   }
 
-  function step(kind,signed){
+  function step(kind){
     stepCount++;combo++;if(combo>maxCombo)maxCombo=combo;
     distance+=4+Math.min(combo*0.15,10);
-    runner.legPhase+=1;runner.bounce=1;runner.tiltTarget=0;
+    runner.bounce=1;runner.tiltTarget=0;
     speedFx=Math.min(1,speedFx+0.12);
     burstDust(runner.x-6,groundY,kind==='PERFECT'?'#fff3c0':'#d8b888',kind==='PERFECT'?9:5);
     if(kind==='PERFECT'){perfectCount++;balance=Math.min(100,balance+6);flash=Math.min(1,flash+0.5);
@@ -293,6 +380,22 @@
   window.addEventListener('keydown',e=>{if(e.code==='Space'||e.code==='ArrowUp'){e.preventDefault();if(!e.repeat)pressDown();}});
   window.addEventListener('keyup',e=>{if(e.code==='Space'||e.code==='ArrowUp')pressUp();});
 
+  // ===== 横画面の強制 =====
+  const rotateScreen=document.getElementById('rotate');
+  const isTouch=(navigator.maxTouchPoints||0)>0 || (window.matchMedia&&window.matchMedia('(pointer:coarse)').matches);
+  let orientationPaused=false;
+  function checkOrientation(){
+    // タッチ端末が縦持ちのときだけ回転を促す（PCはそのまま）
+    orientationPaused = isTouch && (window.innerHeight > window.innerWidth);
+    rotateScreen.classList.toggle('hidden', !orientationPaused);
+    if(orientationPaused)pressCancel();
+  }
+  function lockLandscape(){
+    try{ if(screen.orientation&&screen.orientation.lock) screen.orientation.lock('landscape').catch(()=>{}); }catch(e){}
+  }
+  window.addEventListener('orientationchange',checkOrientation);
+  window.addEventListener('resize',checkOrientation);
+
   // ===== 画面遷移 =====
   const titleScreen=document.getElementById('titleScreen');
   const resultScreen=document.getElementById('resultScreen');
@@ -301,6 +404,7 @@
   const rankText=document.getElementById('rankText');
 
   function startGame(){
+    lockLandscape();checkOrientation();
     reset();state=STATE.PLAY;
     titleScreen.classList.add('hidden');resultScreen.classList.add('hidden');
   }
@@ -315,17 +419,17 @@
     document.getElementById('stAcc').textContent=acc+'%';
     document.getElementById('stJump').textContent=jumpCount;
     bestText.innerHTML='最高記録 '+best.toLocaleString()+' 里'+(isNew?'<span class="newbest">新記録!</span>':'');
-    rankText.textContent=rankOf(score,maxCombo);
+    rankText.innerHTML=SEAL+rankOf(score,maxCombo);
     resultScreen.classList.remove('hidden');
     resultScreen.classList.remove('fadein');void resultScreen.offsetWidth;resultScreen.classList.add('fadein');
   }
   function rankOf(s,c){
-    if(s>=3000||c>=80)return '🏆 韋駄天の飛脚！';
-    if(s>=1500)return '🥇 江戸一番の韋駄天';
-    if(s>=800)return '🥈 玄人の飛脚';
-    if(s>=300)return '🥉 一人前の飛脚';
-    if(s>=100)return '🏮 見習い飛脚';
-    return '🌱 まだまだ修行';
+    if(s>=3000||c>=80)return '韋駄天の飛脚！';
+    if(s>=1500)return '江戸一番の韋駄天';
+    if(s>=800)return '玄人の飛脚';
+    if(s>=300)return '一人前の飛脚';
+    if(s>=100)return '見習い飛脚';
+    return 'まだまだ修行';
   }
   document.getElementById('startBtn').addEventListener('click',startGame);
   document.getElementById('retryBtn').addEventListener('click',startGame);
@@ -339,44 +443,44 @@
     for(const p of petals){p.sway+=0.04*f;p.x+=(p.vx-speedFx*1.5)*f;p.y+=p.vy*f;
       if(p.y>H||p.x<-10){p.x=W+Math.random()*40;p.y=-10;}}
 
-    if(state===STATE.PLAY){
+    // 縦持ち（横画面待ち）の間はゲームを一時停止してリズムも止める
+    if(orientationPaused){ lastStepAt=nowMs(); }
+
+    if(state===STATE.PLAY && !orientationPaused){
       if(intro>0){
         intro-=dt;
         introLabel = intro>1700?'3':intro>900?'2':intro>100?'1':'走れ！';
       }else{
-        beatInterval=Math.max(330,620-distance/12);
-        while(t>=nextBeat){markers.push({arrive:nextBeat+TRAVEL,hit:false,missed:false});nextBeat+=beatInterval;}
+        // 長押し→ジャンプ（タップの一歩はそのまま、加えて跳ぶ）
+        if(isPressing&&jumpArmed&&t-pressStart>HOLD_MS){jumpArmed=false;didJumpThisPress=true;if(runner.onGround)jump();}
 
-        // 長押し→ジャンプ（しきい値を超えたら一歩はキャンセルしてジャンプ）
-        if(isPressing&&pendingTap&&t-pressStart>HOLD_MS){pendingTap=false;didJumpThisPress=true;if(runner.onGround)jump();}
-
-        // 見逃し判定（空中なら救済）
-        for(const m of markers){
-          if(!m.hit&&!m.missed&&t-m.arrive>W_MISS){
-            m.missed=true;
-            if(!runner.onGround){ // ジャンプ中は自動接続
-              stepCount++;combo++;if(combo>maxCombo)maxCombo=combo;perfectCount+=0;
-              distance+=4;balance=Math.min(100,balance+1);
-            }else{
-              combo=0;balance-=18;runner.tiltTarget=0.32;speedFx=Math.max(0,speedFx-0.4);redFlash=Math.min(1,redFlash+0.4);
-              popups.push(mkPop('見逃し…','#ff5a3c',1));
-              if(balance<=0){balance=0;gameOver();}
-            }
-          }
+        // 足が止まる：一定時間タップが無いとリズムが崩れて失速・消耗
+        if(lastStepAt>0 && rhythmInterval>0 && t-lastStepAt > rhythmInterval*2.0){
+          needSeed=true;combo=0;
+          balance=Math.max(0,balance-dt*0.02);
+          speedFx=Math.max(0,speedFx-dt*0.0025);
+          if(balance<=0){balance=0;gameOver();}
         }
-        markers=markers.filter(m=>t-m.arrive<600);
 
-        // 障害物スポーン
+        // 障害物スポーン（進むほど少し頻繁に）
         obsTimer-=dt;
         if(obsTimer<=0){
           const kinds=['rock','bucket','crate'];const k=kinds[Math.floor(Math.random()*kinds.length)];
           let w=44,h=44;if(k==='bucket'){w=40;h=46;}if(k==='crate'){w=48;h=48;}if(k==='rock'){w=46;h=40;}
           obstacles.push({x:W+40,w,h,t:k,hit:false});
-          obsTimer=1700+Math.random()*1900;
+          obsTimer=Math.max(1100,1700-distance/4)+Math.random()*1500;
         }
 
         balance=Math.min(100,balance+dt*0.004);
         speedFx=Math.max(0,speedFx-dt*0.0009);
+
+        // 距離マイルストーン（500里ごと）
+        const ms=Math.floor(distance/500);
+        if(ms>lastMilestone){
+          lastMilestone=ms;
+          popups.push({text:(ms*500)+' 里 突破！',color:'#ffe27a',x:W/2,y:H*0.5,life:1.4,scale:1.5});
+          flash=Math.min(1,flash+0.4);
+        }
       }
 
       const flow=(1.5+speedFx*9+Math.min(combo,40)*0.12);
@@ -403,6 +507,11 @@
     }
     runner.bounce*=Math.pow(0.82,f);
     runner.tilt+=(runner.tiltTarget-runner.tilt)*0.2*f;runner.tiltTarget*=Math.pow(0.9,f);
+    // 脚は走行中つねに小気味よく動かす（止まると緩やかに）
+    if(state===STATE.PLAY && intro<=0 && runner.onGround){
+      const paused = lastStepAt>0 && rhythmInterval>0 && (nowMs()-lastStepAt) > rhythmInterval*1.6;
+      runner.legPhase += (paused?0.08:(0.42+speedFx*0.34))*f;
+    }
 
     for(const p of particles){p.vy+=p.g*f;p.x+=p.vx*f;p.y+=p.vy*f;p.life-=dt*0.0016;}
     particles=particles.filter(p=>p.life>0);
@@ -416,6 +525,27 @@
 
   // ===== 描画 =====
   function rrect(x,y,w,h,r){ctx.beginPath();ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w,y+h,r);ctx.arcTo(x+w,y+h,x,y+h,r);ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath();}
+
+  // 小さな提灯（HUD用ベクター）
+  function drawMiniLantern(cx,cy,h){
+    const w=h*0.72;
+    ctx.save();
+    ctx.fillStyle='#7a5128';ctx.fillRect(cx-w*0.22,cy-h/2-2,w*0.44,2.4);ctx.fillRect(cx-w*0.22,cy+h/2-0.4,w*0.44,2.4);
+    ctx.fillStyle='#d8352a';ctx.beginPath();ctx.ellipse(cx,cy,w/2,h/2,0,0,6.29);ctx.fill();
+    ctx.strokeStyle='rgba(158,29,22,0.8)';ctx.lineWidth=1;
+    for(let i=-1;i<=1;i++){ctx.beginPath();ctx.moveTo(cx-w/2,cy+i*h*0.27);ctx.lineTo(cx+w/2,cy+i*h*0.27);ctx.stroke();}
+    ctx.fillStyle='rgba(255,255,255,0.18)';ctx.beginPath();ctx.ellipse(cx-w*0.22,cy-h*0.12,w*0.1,h*0.22,0,0,6.29);ctx.fill();
+    ctx.restore();
+  }
+  // 警告の三角（!）
+  function drawWarnTri(cx,cy,s,color){
+    ctx.save();
+    ctx.fillStyle=color;ctx.beginPath();
+    ctx.moveTo(cx,cy-s);ctx.lineTo(cx+s*0.92,cy+s*0.72);ctx.lineTo(cx-s*0.92,cy+s*0.72);ctx.closePath();ctx.fill();
+    ctx.fillStyle='#fff';ctx.fillRect(cx-s*0.12,cy-s*0.28,s*0.24,s*0.55);
+    ctx.beginPath();ctx.arc(cx,cy+s*0.52,s*0.13,0,6.29);ctx.fill();
+    ctx.restore();
+  }
 
   function drawBackground(){
     const g=ctx.createLinearGradient(0,0,0,groundY);
@@ -450,6 +580,17 @@
     for(let i=-1;i<6;i++){const bx=i*W*0.45-hoff;const r=hills[(i+6)%6].r;
       ctx.beginPath();ctx.moveTo(bx-r*1.6,groundY);ctx.quadraticCurveTo(bx,groundY-r,bx+r*1.6,groundY);ctx.closePath();ctx.fill();}
 
+    // 鳥居のシルエット（中景パララックス）
+    ctx.fillStyle='rgba(150,40,40,0.32)';
+    const tSpan=W*0.62, toff=(scrollX*0.5)%tSpan;
+    for(let i=-1;i<3;i++){
+      const bx=i*tSpan-toff, th=H*0.16, tw=th*0.78, ty=groundY;
+      ctx.fillRect(bx-tw/2, ty-th, 7, th);
+      ctx.fillRect(bx+tw/2-7, ty-th, 7, th);
+      ctx.fillRect(bx-tw/2-9, ty-th-2, tw+18, 9);          // 笠木
+      ctx.fillRect(bx-tw/2-3, ty-th+12, tw+6, 6);          // 貫
+    }
+
     // 地面
     ctx.fillStyle='#cba869';ctx.fillRect(0,groundY,W,H-groundY);
     ctx.fillStyle='#b8915a';ctx.fillRect(0,groundY,W,6);
@@ -461,32 +602,6 @@
     ctx.fillStyle='rgba(255,190,210,0.9)';
     for(const p of petals){ctx.save();ctx.translate(p.x,p.y);ctx.rotate(p.sway);ctx.beginPath();
       ctx.ellipse(0,0,p.r,p.r*0.6,0,0,6.29);ctx.fill();ctx.restore();}
-  }
-
-  function drawLane(){
-    const t=nowMs();const laneY=groundY+2;
-    const beatPhase=Math.abs(Math.sin(t/Math.max(beatInterval,1)*Math.PI));
-    ctx.save();
-    // 軌道の薄いガイド
-    ctx.strokeStyle='rgba(255,255,255,0.18)';ctx.lineWidth=2;ctx.setLineDash([6,10]);
-    ctx.beginPath();ctx.moveTo(hitX,laneY);ctx.lineTo(W,laneY);ctx.stroke();ctx.setLineDash([]);
-    // 判定リング
-    ctx.strokeStyle='rgba(255,255,255,0.95)';ctx.lineWidth=4;
-    ctx.beginPath();ctx.ellipse(hitX,laneY,34,14,0,0,6.29);ctx.stroke();
-    ctx.strokeStyle='rgba(255,90,50,'+(0.3+beatPhase*0.55)+')';ctx.lineWidth=3;
-    ctx.beginPath();ctx.ellipse(hitX,laneY,34+beatPhase*7,14+beatPhase*3,0,0,6.29);ctx.stroke();
-    ctx.restore();
-
-    for(const m of markers){
-      if(m.hit)continue;
-      const prog=1-(m.arrive-t)/TRAVEL;if(prog<-0.05)continue;
-      const x=W+(hitX-W)*prog;
-      let a=1;if(m.missed)a=Math.max(0,1-(t-m.arrive)/400);if(prog<0.1)a*=prog/0.1;
-      // 近づくと拡大
-      const sc=0.8+prog*0.5;
-      ctx.save();ctx.globalAlpha=Math.max(0,a);ctx.translate(x,laneY);ctx.scale(sc,sc);
-      ctx.font='26px serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('👣',0,0);ctx.restore();
-    }
   }
 
   function drawObstacles(){
@@ -513,8 +628,7 @@
       // 接近警告（早めに・大きく表示して長押しの猶予を確保）
       if(o.x>hitX-10&&o.x<hitX+320){
         const blink=0.55+0.45*Math.sin(nowMs()/90);
-        ctx.fillStyle='rgba(255,80,40,'+blink+')';ctx.font='bold 27px sans-serif';ctx.textAlign='center';
-        ctx.fillText('❗',x+o.w/2,y-14);
+        drawWarnTri(x+o.w/2, y-20, 13, 'rgba(255,80,40,'+blink+')');
       }
     }
   }
@@ -522,7 +636,7 @@
   function drawRunner(){
     const r=runner,cx=r.x,topY=r.y;
     const air=!r.onGround;
-    const swing=air?0.55:Math.sin(r.legPhase*Math.PI);
+    const swing=air?0.55:Math.sin(r.legPhase);
 
     ctx.save();
     // 影（ジャンプで小さく）
@@ -531,6 +645,16 @@
     ctx.beginPath();ctx.ellipse(cx,shY,r.w*0.5*shScale,7*shScale,0,0,6.29);ctx.fill();
 
     ctx.translate(cx,topY+r.h);ctx.rotate(0.12+r.tilt);
+
+    // 御用箱を担ぐ棒（体の後ろに描いて飛脚らしく）
+    ctx.save();
+    ctx.strokeStyle='#5a3d1f';ctx.lineWidth=4;ctx.lineCap='round';
+    ctx.beginPath();ctx.moveTo(-2,-r.h+30);ctx.lineTo(-24,-r.h+4);ctx.stroke();
+    ctx.translate(-28,-r.h);ctx.rotate(-0.16);
+    ctx.fillStyle='#7a4a20';ctx.fillRect(-9,-9,18,18);
+    ctx.strokeStyle='#4a2c12';ctx.lineWidth=2;ctx.strokeRect(-9,-9,18,18);
+    ctx.fillStyle='#e8b13c';ctx.fillRect(-9,-2,18,3.5);
+    ctx.restore();
 
     ctx.strokeStyle='#3a2a18';ctx.lineWidth=7;ctx.lineCap='round';
     ctx.beginPath();ctx.moveTo(-4,-28);ctx.lineTo(-4-swing*16,air?-10:-2);ctx.stroke();
@@ -587,8 +711,9 @@
     ctx.save();
     ctx.fillStyle='rgba(20,14,30,0.72)';rrect(padL,padT,pw,ph,14);ctx.fill();
     ctx.strokeStyle='rgba(255,207,63,0.55)';ctx.lineWidth=1.5;rrect(padL,padT,pw,ph,14);ctx.stroke();
+    drawMiniLantern(padL+18, padT+13*sc, 16*sc);
     ctx.fillStyle='#ffcf3f';ctx.font='bold 14px sans-serif';ctx.textAlign='left';ctx.textBaseline='alphabetic';
-    ctx.fillText('🏮 距離',padL+12,padT+19*sc);
+    ctx.fillText('距離',padL+30,padT+19*sc);
     const dstr=Math.floor(distance).toLocaleString();
     ctx.fillStyle='#fff';ctx.font='900 '+Math.round(26*sc)+'px sans-serif';
     ctx.fillText(dstr,padL+10,padT+44*sc);
@@ -615,8 +740,10 @@
     const gw=148*sc, gh=16, gx=W-gw-18-safe.r, gy=22+safe.t;
     ctx.save();
     ctx.fillStyle='rgba(20,14,30,0.72)';rrect(gx-10,gy-20,gw+20,gh+30,12);ctx.fill();
-    ctx.fillStyle=balance<30?'#ff8a6a':'#fff';ctx.font='bold 14px sans-serif';ctx.textAlign='left';
-    ctx.fillText((balance<30?'⚠ ':'')+'バランス '+Math.round(Math.max(0,balance)),gx,gy-6);
+    let lx=gx;
+    if(balance<30){drawWarnTri(gx+6,gy-9,7,'#ff5a3c');lx=gx+16;}
+    ctx.fillStyle=balance<30?'#ff8a6a':'#fff';ctx.font='bold 14px sans-serif';ctx.textAlign='left';ctx.textBaseline='alphabetic';
+    ctx.fillText('バランス '+Math.round(Math.max(0,balance)),lx,gy-6);
     ctx.fillStyle='rgba(0,0,0,0.55)';rrect(gx,gy,gw,gh,8);ctx.fill();
     const bw=gw*Math.max(0,balance)/100;
     const bc=balance>55?'#46e06a':balance>25?'#f5c518':'#e23c00';
@@ -641,7 +768,7 @@
     // 操作ヒント（プレイ画面のすぐ上に表示）
     ctx.save();ctx.textAlign='center';ctx.textBaseline='middle';ctx.globalAlpha=0.95;
     ctx.font='bold 17px sans-serif';ctx.lineWidth=4;ctx.strokeStyle='rgba(0,0,0,0.55)';
-    const h1='👣に合わせてタップ＝一歩', h2='岩や桶は長押しでジャンプ';
+    const h1='一定のリズムでタップ＝走る', h2='岩や桶は長押しでジャンプ';
     ctx.strokeText(h1,W/2,cy+72);ctx.fillStyle='#fff';ctx.fillText(h1,W/2,cy+72);
     ctx.strokeText(h2,W/2,cy+98);ctx.fillText(h2,W/2,cy+98);
     ctx.restore();
@@ -664,7 +791,7 @@
     ctx.save();
     if(shakeT>0&&!reduceMotion)ctx.translate((Math.random()-0.5)*shakeT,(Math.random()-0.5)*shakeT);
     drawBackground();
-    if(state===STATE.PLAY){drawLane();drawObstacles();}
+    if(state===STATE.PLAY)drawObstacles();
     if(state!==STATE.TITLE)drawRunner();
     drawParticles();
     drawPopups();
@@ -675,7 +802,7 @@
     requestAnimationFrame(loop);
   }
 
-  resize();spawnAmbient();
+  resize();spawnAmbient();checkOrientation();
   requestAnimationFrame(loop);
 })();
 </script>
