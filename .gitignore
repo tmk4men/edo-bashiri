@@ -1,0 +1,9 @@
+# OS / editor
+Thumbs.db
+desktop.ini
+.DS_Store
+*.tmp
+
+# codex / scratch
+codex_out.txt
+codex_prompt.txt
