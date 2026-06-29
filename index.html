@@ -252,8 +252,8 @@
   let groundY=0,hitX=0;
 
   // ランナー
-  const runner={x:0,baseY:0,y:0,w:50,h:70,legPhase:0,bounce:0,tilt:0,tiltTarget:0,vy:0,onGround:true};
-  let gravity=0.82, jumpPower=-16.5;
+  const runner={x:0,baseY:0,y:0,w:50,h:70,legPhase:0,legTarget:0,bounce:0,tilt:0,tiltTarget:0,vy:0,onGround:true};
+  let gravity=0.78, jumpPower=-21.5;
 
   // リズム（外部ビートは見せず、プレイヤー自身のテンポの安定度で判定）
   let lastStepAt=-1;        // 直近の一歩の時刻
@@ -293,7 +293,7 @@
   function reset(){
     resize();
     runner.x=hitX;runner.y=runner.baseY=groundY-runner.h;
-    runner.legPhase=0;runner.bounce=0;runner.tilt=0;runner.tiltTarget=0;runner.vy=0;runner.onGround=true;
+    runner.legPhase=0;runner.legTarget=0;runner.bounce=0;runner.tilt=0;runner.tiltTarget=0;runner.vy=0;runner.onGround=true;
     distance=0;combo=0;maxCombo=0;balance=100;lastMilestone=0;
     speedFx=0;scrollX=0;hillX=0;shakeT=0;flash=0;redFlash=0;
     perfectCount=0;stepCount=0;jumpCount=0;
@@ -341,7 +341,8 @@
     stepCount++;combo++;if(combo>maxCombo)maxCombo=combo;
     distance+=4+Math.min(combo*0.15,10);
     runner.bounce=1;runner.tiltTarget=0;
-    speedFx=Math.min(1,speedFx+0.12);
+    runner.legTarget+=Math.PI;          // 一歩ごとに左右の足を踏み替える
+    speedFx=Math.min(1,speedFx+0.45);   // タップの勢いで前へ進む
     burstDust(runner.x-6,groundY,kind==='PERFECT'?'#fff3c0':'#d8b888',kind==='PERFECT'?9:5);
     if(kind==='PERFECT'){perfectCount++;balance=Math.min(100,balance+6);flash=Math.min(1,flash+0.5);
       popups.push(mkPop('ピタリ！',var0('--green','#46e06a'),1.25));sparkle(runner.x,runner.y+10);}
@@ -450,16 +451,19 @@
       if(intro>0){
         intro-=dt;
         introLabel = intro>1700?'3':intro>900?'2':intro>100?'1':'走れ！';
+        lastStepAt=nowMs();   // 放置タイマーは「走れ！」の後から始める
       }else{
         // 長押し→ジャンプ（タップの一歩はそのまま、加えて跳ぶ）
         if(isPressing&&jumpArmed&&t-pressStart>HOLD_MS){jumpArmed=false;didJumpThisPress=true;if(runner.onGround)jump();}
 
-        // 足が止まる：一定時間タップが無いとリズムが崩れて失速・消耗
-        if(lastStepAt>0 && rhythmInterval>0 && t-lastStepAt > rhythmInterval*2.0){
+        // 放置すると前のめりに倒れる（江戸走りは止まれば転ぶ）
+        const idle = lastStepAt>0 ? (t-lastStepAt) : 0;
+        const grace = (rhythmInterval>0?rhythmInterval:500)*1.4;
+        if(idle>grace){
           needSeed=true;combo=0;
-          balance=Math.max(0,balance-dt*0.02);
-          speedFx=Math.max(0,speedFx-dt*0.0025);
-          if(balance<=0){balance=0;gameOver();}
+          const over=Math.min(1,(idle-grace)/650);
+          runner.tiltTarget=Math.max(runner.tiltTarget, 0.25+over*0.95);
+          if(runner.tilt>0.9){ gameOver(); return; }
         }
 
         // 障害物スポーン（進むほど少し頻繁に）
@@ -472,7 +476,7 @@
         }
 
         balance=Math.min(100,balance+dt*0.004);
-        speedFx=Math.max(0,speedFx-dt*0.0009);
+        speedFx=Math.max(0,speedFx-dt*0.0007);
 
         // 距離マイルストーン（500里ごと）
         const ms=Math.floor(distance/500);
@@ -483,7 +487,8 @@
         }
       }
 
-      const flow=(1.5+speedFx*9+Math.min(combo,40)*0.12);
+      // 進むのはタップの勢い（speedFx）だけ。放置すれば止まる。
+      const flow=speedFx*11;
       scrollX+=flow*f; hillX+=flow*0.35*f;
 
       // 障害物移動＆衝突
@@ -507,11 +512,8 @@
     }
     runner.bounce*=Math.pow(0.82,f);
     runner.tilt+=(runner.tiltTarget-runner.tilt)*0.2*f;runner.tiltTarget*=Math.pow(0.9,f);
-    // 脚は走行中つねに小気味よく動かす（止まると緩やかに）
-    if(state===STATE.PLAY && intro<=0 && runner.onGround){
-      const paused = lastStepAt>0 && rhythmInterval>0 && (nowMs()-lastStepAt) > rhythmInterval*1.6;
-      runner.legPhase += (paused?0.08:(0.42+speedFx*0.34))*f;
-    }
+    // 脚はタップ（一歩）に反応して踏み出す。放置中は動かない。
+    runner.legPhase += (runner.legTarget - runner.legPhase) * Math.min(1, 0.45*f);
 
     for(const p of particles){p.vy+=p.g*f;p.x+=p.vx*f;p.y+=p.vy*f;p.life-=dt*0.0016;}
     particles=particles.filter(p=>p.life>0);
