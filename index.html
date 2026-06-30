@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>江戸走り 〜飛脚リズム〜</title>
-<meta name="description" content="流行りの「江戸走り」をテーマにしたミニゲーム。一定のリズムでタップして飛脚を走らせ、岩や桶は長押しでジャンプ。横画面で遊ぼう！">
+<meta name="description" content="流行りの「江戸走り」をテーマにしたミニゲーム。右下の走るボタンを一定のリズムで叩いて飛脚を走らせ、岩や桶は左下のジャンプボタンで飛び越えろ。横画面で遊ぼう！">
 <meta name="theme-color" content="#241a3e">
 
 <!-- OGP / Open Graph -->
@@ -126,6 +126,26 @@
   .rot-sub{font-size:clamp(12px,4vw,15px);opacity:.82;line-height:1.6;}
   @media (prefers-reduced-motion:reduce){.rot-svg{animation:none;transform:rotate(60deg);}}
 
+  /* ===== プレイ中の操作ボタン ===== */
+  .touch-controls{position:absolute;inset:0;z-index:15;pointer-events:none;}
+  .touch-controls.hidden{display:none;}
+  .gbtn{position:absolute;bottom:max(16px,env(safe-area-inset-bottom));
+    width:clamp(72px,15vw,108px);height:clamp(72px,15vw,108px);border-radius:50%;
+    border:2px solid rgba(255,255,255,.35);pointer-events:auto;cursor:pointer;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;
+    color:#fff;font-weight:900;letter-spacing:2px;font-size:clamp(11px,2.6vw,14px);
+    touch-action:none;-webkit-user-select:none;user-select:none;
+    box-shadow:0 6px 0 rgba(0,0,0,.32),0 11px 22px rgba(0,0,0,.42),inset 0 2px 0 rgba(255,255,255,.4);
+    transition:transform .04s,box-shadow .04s;}
+  .gbtn:active{transform:translateY(4px);box-shadow:0 2px 0 rgba(0,0,0,.32),0 4px 12px rgba(0,0,0,.42),inset 0 2px 0 rgba(255,255,255,.4);}
+  .gbtn svg{width:clamp(26px,6.5vw,38px);height:clamp(26px,6.5vw,38px);}
+  .gbtn-jump{left:max(16px,env(safe-area-inset-left));background:linear-gradient(180deg,#5ea1ff,#2c6fd6);}
+  .gbtn-run{right:max(16px,env(safe-area-inset-right));background:linear-gradient(180deg,#ff8a4d,#e23c00);}
+  @media (max-height:480px){
+    .gbtn{width:clamp(60px,13vh,86px);height:clamp(60px,13vh,86px);font-size:clamp(10px,2.4vh,13px);}
+    .gbtn svg{width:clamp(22px,6vh,32px);height:clamp(22px,6vh,32px);}
+  }
+
   /* SVGアイコン共通 */
   .ico{width:1.4em;height:1.4em;vertical-align:-0.32em;}
   .ico-lantern{width:0.9em;height:1.25em;vertical-align:-0.22em;}
@@ -158,6 +178,25 @@
 <body>
 <div id="wrap">
   <canvas id="game"></canvas>
+
+  <!-- 操作ボタン（プレイ中のみ表示：左下ジャンプ／右下走る） -->
+  <div id="touchControls" class="touch-controls hidden">
+    <button id="jumpBtn" class="gbtn gbtn-jump" type="button" aria-label="ジャンプ">
+      <svg viewBox="0 0 48 48" aria-hidden="true">
+        <path d="M24 7 L37 22 H29 V34 H19 V22 H11 Z" fill="#eaf4ff"/>
+        <path d="M13 41 H35" stroke="#eaf4ff" stroke-width="4" stroke-linecap="round" opacity="0.7"/>
+      </svg>
+      <span>跳ぶ</span>
+    </button>
+    <button id="runBtn" class="gbtn gbtn-run" type="button" aria-label="走る">
+      <svg viewBox="0 0 48 48" aria-hidden="true">
+        <circle cx="29" cy="9" r="4.4" fill="#fff"/>
+        <path d="M27 15 l-8 5 l3 7 l-7 9 M22 27 l8 1 l5 7 M19 20 l9 -1 l6 5" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M8 24 h7 M6 31 h6" stroke="#fff" stroke-width="3" stroke-linecap="round" opacity="0.6"/>
+      </svg>
+      <span>走る</span>
+    </button>
+  </div>
 
   <!-- 横画面の強制（縦持ち時に表示） -->
   <div id="rotate" class="rotate hidden">
@@ -195,9 +234,9 @@
     <div class="ribbon">〜 飛 脚 リ ズ ム 〜</div>
     <div class="card">
       極意は「あわてず、<b>一定のリズム</b>で」。<br>
-      画面を<b>トン・トン・トンと一定のテンポでタップ</b>すれば走る。<br>
+      右下の<b>走るボタンをトン・トン・トンと一定のテンポ</b>で叩けば走る。<br>
       テンポが乱れると<b>つんのめってコケる</b>ので、勘でリズムよく！<br>
-      行く手の岩や桶は<b>長押しでジャンプ</b>して飛び越えろ。
+      行く手の岩や桶は<b>左下のジャンプボタン</b>で飛び越えろ。
     </div>
     <div class="controls">
       <div class="ctl">
@@ -205,17 +244,17 @@
           <path d="M11 15 a13 13 0 0 1 26 0" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" opacity="0.85"/>
           <path d="M6 11 a18 18 0 0 1 36 0" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" opacity="0.45"/>
           <circle cx="24" cy="28" r="6.5" fill="#ffcf3f"/>
-        </svg>タップ＝一歩
+        </svg>右下＝走る
       </div>
       <div class="ctl">
         <svg class="ico" viewBox="0 0 48 48" aria-hidden="true">
-          <circle cx="24" cy="24" r="13" fill="none" stroke="#fff" stroke-width="2.6" stroke-dasharray="58 24" stroke-linecap="round" opacity="0.85" transform="rotate(-90 24 24)"/>
-          <circle cx="24" cy="24" r="6.5" fill="#ffcf3f"/>
-        </svg>長押し＝ジャンプ
+          <path d="M24 8 l11 13 h-7 v12 h-8 v-12 h-7 z" fill="#9ad0ff"/>
+          <path d="M14 40 h20" stroke="#fff" stroke-width="3" stroke-linecap="round" opacity="0.7"/>
+        </svg>左下＝ジャンプ
       </div>
     </div>
     <button id="startBtn" class="btn">走り出す</button>
-    <div class="hint">スマホはタップ／PCはクリック・スペースキー</div>
+    <div class="hint">スマホは画面下の2つのボタン／PCはスペース＝走る・↑＝ジャンプ</div>
   </div>
 
   <!-- リザルト -->
@@ -283,9 +322,7 @@
   let needSeed=true;        // 次の一歩でリズムを引き直す（ノーペナルティ）
   const MIN_INT=240, MAX_INT=820;   // 許容テンポ範囲
 
-  // 入力
-  let isPressing=false, pressStart=0, didJumpThisPress=false, jumpArmed=false;
-  const HOLD_MS=230;        // これ以上の長押しでジャンプ（短いタップは必ず一歩）
+  // 入力（右下＝走る＝一歩 ／ 左下＝ジャンプ）
 
   // 進行
   let distance=0, combo=0, maxCombo=0, balance=100, lastMilestone=0;
@@ -326,15 +363,19 @@
   }
 
   // ===== 入力処理 =====
-  // タップ＝必ず一歩（押した瞬間に即時判定）。長押しはそれに加えてジャンプ。
-  function pressDown(){
+  // 走る＝一歩（押した瞬間に即時判定）。ジャンプは独立したボタン。
+  function runStep(){
     if(state!==STATE.PLAY)return;
     if(intro>0)return;
-    isPressing=true;pressStart=nowMs();didJumpThisPress=false;jumpArmed=true;
-    tap(pressStart);
+    tap(nowMs());
   }
-  function pressUp(){isPressing=false;jumpArmed=false;}
-  function pressCancel(){isPressing=false;jumpArmed=false;}
+  function jumpInput(){
+    if(state!==STATE.PLAY)return;
+    if(intro>0)return;
+    jump();
+  }
+  // 互換用（横画面復帰・blur時の呼び出し）。今は保持する状態が無いので何もしない。
+  function pressCancel(){}
 
   function tap(t){
     // 最初の一歩、または仕切り直し：リズムを引き直すだけ（ノーペナルティ）
@@ -392,16 +433,27 @@
   function burstDust(x,y,color,n){if(reduceMotion)return;for(let i=0;i<n;i++)particles.push({x,y,vx:(Math.random()-0.5)*3-1,vy:-Math.random()*2.5,life:1,size:2+Math.random()*3,color,g:0.12});}
   function sparkle(x,y){if(reduceMotion)return;for(let i=0;i<10;i++){const a=Math.random()*6.28,s=1+Math.random()*3;particles.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s-1,life:1,size:2+Math.random()*2,color:'#ffe88a',g:0.04,star:true});}}
 
-  function onPress(e){e.preventDefault();pressDown();}
-  function onRelease(e){pressUp();}
-  canvas.addEventListener('touchstart',onPress,{passive:false});
-  canvas.addEventListener('touchend',onRelease,{passive:false});
-  canvas.addEventListener('touchcancel',()=>pressCancel(),{passive:false});
-  canvas.addEventListener('mousedown',onPress);
-  window.addEventListener('mouseup',onRelease);
+  // キャンバスのどこを叩いても「走る一歩」（PC・予備操作）
+  function onCanvasPress(e){e.preventDefault();runStep();}
+  canvas.addEventListener('touchstart',onCanvasPress,{passive:false});
+  canvas.addEventListener('mousedown',onCanvasPress);
   window.addEventListener('blur',()=>pressCancel());
-  window.addEventListener('keydown',e=>{if(e.code==='Space'||e.code==='ArrowUp'){e.preventDefault();if(!e.repeat)pressDown();}});
-  window.addEventListener('keyup',e=>{if(e.code==='Space'||e.code==='ArrowUp')pressUp();});
+  window.addEventListener('keydown',e=>{
+    if(e.code==='Space'){e.preventDefault();if(!e.repeat)runStep();}
+    else if(e.code==='ArrowUp'||e.code==='KeyW'){e.preventDefault();if(!e.repeat)jumpInput();}
+  });
+
+  // 画面下の操作ボタン
+  const jumpBtn=document.getElementById('jumpBtn');
+  const runBtn=document.getElementById('runBtn');
+  function bindTap(el,fn){
+    el.addEventListener('touchstart',e=>{e.preventDefault();fn();},{passive:false});
+    el.addEventListener('mousedown',e=>{e.preventDefault();fn();});
+    // タッチ非対応のクリックも拾う（mousedownと二重発火しないようにtouchは↑で処理）
+    el.addEventListener('click',e=>e.preventDefault());
+  }
+  bindTap(runBtn,runStep);
+  bindTap(jumpBtn,jumpInput);
 
   // ===== 横画面の強制 =====
   const rotateScreen=document.getElementById('rotate');
@@ -426,13 +478,16 @@
   const bestText=document.getElementById('bestText');
   const rankText=document.getElementById('rankText');
 
+  const touchControls=document.getElementById('touchControls');
   function startGame(){
     lockLandscape();checkOrientation();
     reset();state=STATE.PLAY;
     titleScreen.classList.add('hidden');resultScreen.classList.add('hidden');
+    touchControls.classList.remove('hidden');
   }
   function gameOver(){
     state=STATE.OVER;
+    touchControls.classList.add('hidden');
     const score=Math.floor(distance);
     const isNew=score>best;
     if(isNew){best=score;try{localStorage.setItem('edo_rhythm_best',String(best));}catch(e){}}
@@ -475,13 +530,11 @@
         introLabel = intro>1700?'3':intro>900?'2':intro>100?'1':'走れ！';
         lastStepAt=nowMs();   // 放置タイマーは「走れ！」の後から始める
       }else{
-        // 長押し→ジャンプ（タップの一歩はそのまま、加えて跳ぶ）
-        if(isPressing&&jumpArmed&&t-pressStart>HOLD_MS){jumpArmed=false;didJumpThisPress=true;if(runner.onGround)jump();}
-
-        // 放置すると前のめりに倒れる（江戸走りは止まれば転ぶ）
+        // 放置すると前のめりに倒れる（江戸走りは止まれば転ぶ）。
+        // ジャンプ中（空中）は走りが止まっても転ばない＝着地までは猶予。
         const idle = lastStepAt>0 ? (t-lastStepAt) : 0;
         const grace = (rhythmInterval>0?rhythmInterval:500)*1.4;
-        if(idle>grace){
+        if(runner.onGround && idle>grace){
           needSeed=true;combo=0;
           const over=Math.min(1,(idle-grace)/650);
           runner.tiltTarget=Math.max(runner.tiltTarget, 0.25+over*0.95);
@@ -528,7 +581,8 @@
     // ランナー物理
     if(!runner.onGround){
       runner.vy+=gravity*f;runner.y+=runner.vy*f;
-      if(runner.y>=runner.baseY){runner.y=runner.baseY;runner.vy=0;runner.onGround=true;burstDust(runner.x,groundY,'#d8b888',6);}
+      if(runner.y>=runner.baseY){runner.y=runner.baseY;runner.vy=0;runner.onGround=true;burstDust(runner.x,groundY,'#d8b888',6);
+        if(state===STATE.PLAY&&intro<=0)lastStepAt=nowMs();}   // 着地でリズム猶予を仕切り直し
     }else{
       runner.y=runner.baseY-runner.bounce*14;
     }
@@ -817,7 +871,7 @@
     // 操作ヒント（プレイ画面のすぐ上に表示）
     ctx.save();ctx.textAlign='center';ctx.textBaseline='middle';ctx.globalAlpha=0.95;
     ctx.font='bold 17px sans-serif';ctx.lineWidth=4;ctx.strokeStyle='rgba(0,0,0,0.55)';
-    const h1='一定のリズムでタップ＝走る', h2='岩や桶は長押しでジャンプ';
+    const h1='右下を一定のリズムで叩く＝走る', h2='岩や桶は左下ボタンでジャンプ';
     ctx.strokeText(h1,W/2,cy+72);ctx.fillStyle='#fff';ctx.fillText(h1,W/2,cy+72);
     ctx.strokeText(h2,W/2,cy+98);ctx.fillText(h2,W/2,cy+98);
     ctx.restore();
