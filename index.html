@@ -146,6 +146,15 @@
     .gbtn svg{width:clamp(22px,6vh,32px);height:clamp(22px,6vh,32px);}
   }
 
+  /* ===== 音のオン/オフ ===== */
+  .mutebtn{position:absolute;z-index:30;top:max(12px,env(safe-area-inset-top));right:max(12px,env(safe-area-inset-right));
+    width:42px;height:42px;border-radius:50%;cursor:pointer;
+    background:rgba(20,14,30,0.62);border:1px solid rgba(255,207,63,0.5);
+    display:flex;align-items:center;justify-content:center;color:#ffcf3f;
+    box-shadow:0 3px 10px rgba(0,0,0,0.35);}
+  .mutebtn svg{width:22px;height:22px;}
+  .mutebtn:active{transform:scale(0.92);}
+
   /* SVGアイコン共通 */
   .ico{width:1.4em;height:1.4em;vertical-align:-0.32em;}
   .ico-lantern{width:0.9em;height:1.25em;vertical-align:-0.22em;}
@@ -179,14 +188,16 @@
 <div id="wrap">
   <canvas id="game"></canvas>
 
+  <!-- 音のオン/オフ -->
+  <button id="muteBtn" class="mutebtn" type="button" aria-label="音のオン・オフ"></button>
+
   <!-- 操作ボタン（プレイ中のみ表示：左下ジャンプ／右下走る） -->
   <div id="touchControls" class="touch-controls hidden">
-    <button id="jumpBtn" class="gbtn gbtn-jump" type="button" aria-label="ジャンプ">
+    <button id="jumpBtn" class="gbtn gbtn-jump" type="button" aria-label="後退">
       <svg viewBox="0 0 48 48" aria-hidden="true">
-        <path d="M24 7 L37 22 H29 V34 H19 V22 H11 Z" fill="#eaf4ff"/>
-        <path d="M13 41 H35" stroke="#eaf4ff" stroke-width="4" stroke-linecap="round" opacity="0.7"/>
+        <path d="M22 10 L7 24 L22 38 V30 H38 V18 H22 Z" fill="#eaf4ff"/>
       </svg>
-      <span>跳ぶ</span>
+      <span>下がる</span>
     </button>
     <button id="runBtn" class="gbtn gbtn-run" type="button" aria-label="走る">
       <svg viewBox="0 0 48 48" aria-hidden="true">
@@ -234,10 +245,9 @@
     <div class="ribbon">〜 飛 脚 リ ズ ム 〜</div>
     <div class="card">
       極意は「あわてず、<b>一定のリズム</b>で」。<br>
-      右下の<b>走るボタンを一定のテンポ</b>で叩けば走る。<b>連打は禁物</b>——あわてるとつんのめって転ぶ。<br>
-      岩・桶・樽・俵は<b>左下でジャンプ</b>、落とし穴も<b>跳んで</b>越えろ。<br>
-      逆に<b>関所の棒や烏（頭上）は跳ぶな</b>——くぐって走り抜けろ。<br>
-      <b>一度でもぶつかったら即アウト！</b>
+      右下の<b>走るボタンを一定のテンポ</b>で叩いて前へ。<b>連打は禁物</b>——あわてるとつんのめって<b>転倒（即アウト）</b>。止まっても転ばないので<b>待てる</b>。<br>
+      道中の<b>落石・地槍・関所の棒</b>は<b>時間差で危険化</b>する。足元が<b>赤く光る危険な瞬間</b>にそこへ居たら即アウト！<br>
+      危ない時は<b>左下で後退</b >してやり過ごし、安全になったら走り抜けろ。
     </div>
     <div class="controls">
       <div class="ctl">
@@ -249,13 +259,12 @@
       </div>
       <div class="ctl">
         <svg class="ico" viewBox="0 0 48 48" aria-hidden="true">
-          <path d="M24 8 l11 13 h-7 v12 h-8 v-12 h-7 z" fill="#9ad0ff"/>
-          <path d="M14 40 h20" stroke="#fff" stroke-width="3" stroke-linecap="round" opacity="0.7"/>
-        </svg>左下＝ジャンプ
+          <path d="M22 12 L9 24 L22 36 V29 H38 V19 H22 Z" fill="#9ad0ff"/>
+        </svg>左下＝後退
       </div>
     </div>
     <button id="startBtn" class="btn">走り出す</button>
-    <div class="hint">スマホは画面下の2つのボタン／PCはスペース＝走る・↑＝ジャンプ</div>
+    <div class="hint">スマホは画面下の2つのボタン／PCはスペース＝走る・↓＝後退</div>
   </div>
 
   <!-- リザルト -->
@@ -266,7 +275,7 @@
     <div class="stats">
       <div class="stat"><div id="stCombo" class="v">0</div><div class="l">最大コンボ</div></div>
       <div class="stat"><div id="stAcc" class="v">0%</div><div class="l">ピタリ率</div></div>
-      <div class="stat"><div id="stJump" class="v">0</div><div class="l">跳んだ数</div></div>
+      <div class="stat"><div id="stJump" class="v">0</div><div class="l">後退数</div></div>
     </div>
     <div id="bestText" class="best"></div>
     <button id="retryBtn" class="btn">もう一度</button>
@@ -315,7 +324,7 @@
 
   // ランナー
   const runner={x:0,baseY:0,y:0,w:50,h:70,legPhase:0,legTarget:0,bounce:0,tilt:0,tiltTarget:0,vy:0,onGround:true};
-  let gravity=0.82, jumpPower=-15.5;
+  let backT=0;   // 後退中の残り時間(ms)。この間はギミックから距離を取れる。
 
   // リズム（外部ビートは見せず、プレイヤー自身のテンポの安定度で判定）
   let lastStepAt=-1;        // 直近の一歩の時刻
@@ -328,8 +337,8 @@
 
   // 進行
   let distance=0, combo=0, maxCombo=0, lastMilestone=0;
-  let speedFx=0, scrollX=0, hillX=0, shakeT=0;
-  let perfectCount=0, stepCount=0, jumpCount=0;
+  let speedFx=0, speedTarget=0, scrollX=0, hillX=0, shakeT=0;
+  let perfectCount=0, stepCount=0, backCount=0;
   let clouds=[], hills=[], petals=[], particles=[], popups=[];
   let obstacles=[], obsTimer=0;
   let flash=0, redFlash=0;       // 画面フラッシュ
@@ -340,6 +349,98 @@
   try{best=parseInt(localStorage.getItem('edo_rhythm_best')||'0',10)||0;}catch(e){}
 
   const nowMs=()=>performance.now();
+
+  // ===== サウンド（WebAudioの内蔵シンセ。外部ファイル無し） =====
+  const Sound=(()=>{
+    let ac=null, master=null, bgmGain=null, muted=false, playing=false, timer=null, step=0;
+    let stored=false;
+    try{ muted = localStorage.getItem('edo_muted')==='1'; }catch(e){}
+    function ensure(){
+      if(ac)return true;
+      const AC=window.AudioContext||window.webkitAudioContext; if(!AC)return false;
+      ac=new AC();
+      master=ac.createGain();master.gain.value=0.85;master.connect(ac.destination);
+      bgmGain=ac.createGain();bgmGain.gain.value=0;bgmGain.connect(master);
+      return true;
+    }
+    function resume(){ if(ac&&ac.state==='suspended')ac.resume(); }
+    // 単音（矩形/三角/正弦）
+    function tone(freq,dur,type,vol,dest){
+      if(!ac||muted)return;
+      const t=ac.currentTime;
+      const o=ac.createOscillator(),g=ac.createGain();
+      o.type=type||'square';o.frequency.setValueAtTime(freq,t);
+      g.gain.setValueAtTime(0.0001,t);
+      g.gain.exponentialRampToValueAtTime(vol,t+0.006);
+      g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+      o.connect(g);g.connect(dest||master);o.start(t);o.stop(t+dur+0.02);
+    }
+    // 太鼓（低い正弦をピッチダウン）
+    function drum(freq,dur,vol,dest){
+      if(!ac||muted)return;
+      const t=ac.currentTime;
+      const o=ac.createOscillator(),g=ac.createGain();
+      o.type='sine';o.frequency.setValueAtTime(freq,t);o.frequency.exponentialRampToValueAtTime(freq*0.5,t+dur);
+      g.gain.setValueAtTime(vol,t);g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+      o.connect(g);g.connect(dest||master);o.start(t);o.stop(t+dur+0.02);
+    }
+    // ノイズ（衝突・砂煙）
+    function noise(dur,vol,hp){
+      if(!ac||muted)return;
+      const t=ac.currentTime, n=Math.floor(ac.sampleRate*dur);
+      const buf=ac.createBuffer(1,n,ac.sampleRate), d=buf.getChannelData(0);
+      for(let i=0;i<n;i++)d[i]=(Math.random()*2-1)*(1-i/n);
+      const src=ac.createBufferSource();src.buffer=buf;
+      const g=ac.createGain();g.gain.value=vol;
+      const f=ac.createBiquadFilter();f.type='highpass';f.frequency.value=hp||600;
+      src.connect(f);f.connect(g);g.connect(master);src.start(t);
+    }
+    // ===== 効果音 =====
+    const SE={
+      step(){ drum(150,0.14,0.32); },
+      perfect(){ drum(180,0.14,0.34); tone(880,0.10,'triangle',0.16); tone(1320,0.12,'triangle',0.10); },
+      back(){ tone(320,0.16,'sine',0.22); tone(220,0.20,'sine',0.16); },
+      stumble(){ noise(0.18,0.25,300); drum(90,0.18,0.28); },
+      warn(){ tone(1200,0.06,'square',0.10); },
+      hit(){ noise(0.4,0.4,200); drum(70,0.5,0.5); tone(160,0.4,'sawtooth',0.2); },
+      mile(){ tone(660,0.1,'triangle',0.18); tone(880,0.12,'triangle',0.18); tone(1180,0.16,'triangle',0.16); }
+    };
+    function play(name){ if(!ac||muted)return; (SE[name]||(()=>{}))(); }
+    // ===== BGM（和風ペンタトニックの軽いループ） =====
+    const MEL=[293.66,0,440,0, 392,0,440,523.25, 587.33,0,440,0, 392,329.63,293.66,0];
+    const stepDur=0.235;
+    function tick(){
+      if(!ac||muted||!playing){return;}
+      const s=step%16;
+      if(s%4===0) drum(110,0.22,0.30,bgmGain);            // 太鼓（表拍）
+      if(s%2===1) noise(0.03,0.05,4000);                  // すり足のハット
+      const m=MEL[s]; if(m) tone(m,0.20,'triangle',0.09,bgmGain);
+      step++;
+    }
+    function startBgm(){
+      if(!ensure())return; resume();
+      if(playing)return; playing=true; step=0;
+      bgmGain.gain.cancelScheduledValues(ac.currentTime);
+      bgmGain.gain.setValueAtTime(0.0001,ac.currentTime);
+      bgmGain.gain.exponentialRampToValueAtTime(muted?0.0001:0.7,ac.currentTime+0.6);
+      timer=setInterval(tick,stepDur*1000);
+    }
+    function stopBgm(){
+      playing=false; if(timer){clearInterval(timer);timer=null;}
+      if(ac&&bgmGain){bgmGain.gain.cancelScheduledValues(ac.currentTime);
+        bgmGain.gain.setTargetAtTime(0.0001,ac.currentTime,0.15);}
+    }
+    function setMuted(m){
+      muted=m; try{localStorage.setItem('edo_muted',m?'1':'0');}catch(e){}
+      if(ac&&bgmGain)bgmGain.gain.setTargetAtTime(m?0.0001:(playing?0.7:0.0001),ac.currentTime,0.05);
+    }
+    return {
+      unlock(){ if(ensure())resume(); },
+      play, startBgm, stopBgm,
+      isMuted(){return muted;},
+      toggleMute(){ setMuted(!muted); return muted; }
+    };
+  })();
 
   // リザルトの朱印（SVG）
   const SEAL='<svg class="seal" viewBox="0 0 32 32" aria-hidden="true"><rect x="2" y="2" width="28" height="28" rx="6" fill="#c2362b"/><rect x="2" y="2" width="28" height="28" rx="6" fill="none" stroke="#8e211a" stroke-width="2"/><path d="M16 7 v18 M9 12 h14 M10 19 h12" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/></svg>';
@@ -356,8 +457,8 @@
     runner.x=hitX;runner.y=runner.baseY=groundY-runner.h;
     runner.legPhase=0;runner.legTarget=0;runner.bounce=0;runner.tilt=0;runner.tiltTarget=0;runner.vy=0;runner.onGround=true;
     distance=0;combo=0;maxCombo=0;lastMilestone=0;
-    speedFx=0;scrollX=0;hillX=0;shakeT=0;flash=0;redFlash=0;
-    perfectCount=0;stepCount=0;jumpCount=0;
+    speedFx=0;speedTarget=0;scrollX=0;hillX=0;shakeT=0;flash=0;redFlash=0;
+    perfectCount=0;stepCount=0;backCount=0;backT=0;
     popups=[];particles=[];obstacles=[];obsTimer=0;
     lastStepAt=-1;rhythmInterval=0;needSeed=true;fastMash=0;
     spawnAmbient();
@@ -371,10 +472,10 @@
     if(intro>0)return;
     tap(nowMs());
   }
-  function jumpInput(){
+  function backInput(){
     if(state!==STATE.PLAY)return;
     if(intro>0)return;
-    jump();
+    back();
   }
   // 互換用（横画面復帰・blur時の呼び出し）。今は保持する状態が無いので何もしない。
   function pressCancel(){}
@@ -409,7 +510,8 @@
     distance+=4+Math.min(combo*0.15,10);
     runner.bounce=1;runner.tiltTarget=0;
     runner.legTarget+=Math.PI;          // 一歩ごとに左右の足を踏み替える
-    speedFx=Math.min(1,speedFx+0.45);   // タップの勢いで前へ進む
+    speedTarget=Math.min(1,speedTarget+0.45);   // タップの勢い（実速度はここへ滑らかに追従）
+    Sound.play(kind==='PERFECT'?'perfect':'step');
     burstDust(runner.x-6,groundY,kind==='PERFECT'?'#fff3c0':'#d8b888',kind==='PERFECT'?9:5);
     if(kind==='PERFECT'){perfectCount++;flash=Math.min(1,flash+0.5);
       popups.push(mkPop('ピタリ！',var0('--green','#46e06a'),1.25));sparkle(runner.x,runner.y+10);}
@@ -422,45 +524,69 @@
     combo=0;runner.bounce=0;
     // 連打が続くほど前のめりが深くなり、こらえきれず転倒する
     runner.tiltTarget=Math.min(1.3, Math.max(runner.tiltTarget,0) + 0.3 + sev*0.24);
-    speedFx=Math.max(0,speedFx-0.6);shakeT=11;redFlash=Math.min(1,redFlash+0.6);
+    speedTarget=Math.max(0,speedTarget-0.6);shakeT=11;redFlash=Math.min(1,redFlash+0.6);
+    Sound.play('stumble');
     popups.push(mkPop(label,'#ff5a3c',1.15));
     if(runner.tilt>0.9 || runner.tiltTarget>1.1){ gameOver(); }
   }
 
-  function jump(){
-    if(!runner.onGround)return;
-    runner.vy=jumpPower;runner.onGround=false;jumpCount++;
-    burstDust(runner.x,groundY,'#d8b888',10);
-    popups.push(mkPop('ふわり',var0('--gold','#ffcf3f'),0.9));
+  // 後退：危険な瞬間だけ下がってやり過ごす。走りは乱れず転ばない。
+  function back(){
+    backT=Math.max(backT,360);       // この間だけギミックから距離を取る
+    backCount++;
+    needSeed=true;lastStepAt=nowMs();fastMash=0;   // 後退でリズムは仕切り直し（無ペナルティ）
+    runner.tiltTarget=Math.min(runner.tiltTarget,-0.28);  // のけ反る
+    runner.legTarget+=Math.PI;
+    Sound.play('back');
+    burstDust(runner.x+10,groundY,'#d8b888',7);
+    popups.push(mkPop('下がる',var0('--gold','#ffcf3f'),0.9));
   }
 
-  // ===== 障害物（ギミック） =====
-  // kind:'ground'＝跳び越える ／ 'over'＝頭上・跳ぶと当たる ／ 'hole'＝跳ばないと落ちる
+  // ===== ステージギミック（時間差で攻撃／落下） =====
+  // 各ギミックは「安全→予告(warn)→危険(danger)」を周期で繰り返す。
+  // 危険な瞬間にその位置へ居ると即アウト。前進・後退で安全窓に合わせて通過する。
   function makeObs(t){
-    const o={x:W+60,t,hit:false,kind:'ground',roll:0};
-    if(t==='rock'){o.w=46;o.h=40;}
-    else if(t==='bucket'){o.w=40;o.h=46;}
-    else if(t==='crate'){o.w=48;o.h=48;}
-    else if(t==='barrel'){o.w=44;o.h=44;o.roll=2.6;o.spin=0;}   // 転がる樽＝速い
-    else if(t==='tall'){o.w=42;o.h=66;}                          // 背の高い俵＝ギリギリ
-    else if(t==='bar'){o.kind='over';o.w=64;o.h=18;o.y=groundY-110;}   // 関所の遮断棒
-    else if(t==='crow'){o.kind='over';o.w=48;o.h=24;o.y=groundY-116;o.flap=0;} // 低く飛ぶ烏
-    else if(t==='hole'){o.kind='hole';o.w=72;o.h=0;}             // 落とし穴
+    const o={x:W+90,t,hit:false,phase:Math.random()*1400};
+    if(t==='rock'){            // 落石：真上から降ってくる
+      o.kind='fall'; o.w=50; o.h=48; o.period=1550; o.warn=560; o.danger=300;
+    }else if(t==='spike'){     // 地槍：地面から突き出る
+      o.kind='thrust'; o.w=42; o.h=54; o.period=1350; o.warn=430; o.danger=430;
+    }else if(t==='bar'){       // 薙ぎ棒：関所の棒が横に薙ぎ払う
+      o.kind='sweep'; o.w=60; o.h=30; o.period=1750; o.warn=520; o.danger=380;
+    }
     return o;
   }
+  // 位相から状態を求める。周期の終盤が danger、その手前が warn。
+  function obsState(o){
+    const p=o.phase%o.period;
+    const dStart=o.period-o.danger, wStart=dStart-o.warn;
+    if(p>=dStart)return 'danger';
+    if(p>=wStart)return 'warn';
+    return 'safe';
+  }
+  // danger 進行度(0..1)：見た目のアニメ用
+  function obsK(o){
+    const p=o.phase%o.period;
+    const dStart=o.period-o.danger, wStart=dStart-o.warn;
+    if(p>=dStart)return {st:'danger',k:(p-dStart)/o.danger};
+    if(p>=wStart)return {st:'warn',k:(p-wStart)/o.warn};
+    return {st:'safe',k:0};
+  }
+  // ギミック間の距離：進むほど詰まるが、必ず捌ける間隔を保つ
+  function segLen(){ return Math.max(W*0.44, W*0.66 - distance*0.05); }
   function spawnObstacle(){
     const d=distance;
-    const pool=['rock','bucket','crate'];
-    if(d>250)pool.push('barrel','bar');
-    if(d>600)pool.push('crow','tall');
-    if(d>900)pool.push('hole');
+    const pool=['rock'];
+    if(d>180)pool.push('spike');
+    if(d>460)pool.push('bar');
     obstacles.push(makeObs(pool[Math.floor(Math.random()*pool.length)]));
   }
   function hitObstacle(o){
     runner.bounce=0;runner.tiltTarget=1.35;
-    speedFx=0;shakeT=16;redFlash=1;
+    speedFx=0;speedTarget=0;shakeT=16;redFlash=1;
+    Sound.play('hit');
     burstDust(runner.x,groundY,'#c9a06a',16);
-    const msg = o.kind==='over' ? '頭をぶつけた！' : o.kind==='hole' ? '落ちた！' : 'ぶつかった！';
+    const msg = o.kind==='fall' ? '落石を食らった！' : o.kind==='thrust' ? '槍にやられた！' : 'なぎ払われた！';
     popups.push(mkPop(msg,'#ff5a3c',1.4));
     gameOver();
   }
@@ -478,11 +604,11 @@
   window.addEventListener('blur',()=>pressCancel());
   window.addEventListener('keydown',e=>{
     if(e.code==='Space'){e.preventDefault();if(!e.repeat)runStep();}
-    else if(e.code==='ArrowUp'||e.code==='KeyW'){e.preventDefault();if(!e.repeat)jumpInput();}
+    else if(e.code==='ArrowDown'||e.code==='ArrowLeft'||e.code==='KeyS'){e.preventDefault();if(!e.repeat)backInput();}
   });
 
   // 画面下の操作ボタン
-  const jumpBtn=document.getElementById('jumpBtn');
+  const backBtn=document.getElementById('jumpBtn');
   const runBtn=document.getElementById('runBtn');
   function bindTap(el,fn){
     el.addEventListener('touchstart',e=>{e.preventDefault();fn();},{passive:false});
@@ -491,23 +617,52 @@
     el.addEventListener('click',e=>e.preventDefault());
   }
   bindTap(runBtn,runStep);
-  bindTap(jumpBtn,jumpInput);
+  bindTap(backBtn,backInput);
+
+  // 音のオン/オフ
+  const muteBtn=document.getElementById('muteBtn');
+  const ICON_ON='<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 9 h3 l4 -3.5 v13 l-4 -3.5 H4 Z" fill="currentColor"/><path d="M15 9 a4 4 0 0 1 0 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M17.6 7 a7 7 0 0 1 0 10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>';
+  const ICON_OFF='<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 9 h3 l4 -3.5 v13 l-4 -3.5 H4 Z" fill="currentColor"/><path d="M15 9 l5 6 M20 9 l-5 6" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg>';
+  function renderMute(){ muteBtn.innerHTML = Sound.isMuted()?ICON_OFF:ICON_ON; muteBtn.style.color=Sound.isMuted()?'#c9b8b8':'#ffcf3f'; }
+  renderMute();
+  muteBtn.addEventListener('click',e=>{e.preventDefault();Sound.unlock();Sound.toggleMute();renderMute();});
 
   // ===== 横画面の強制 =====
   const rotateScreen=document.getElementById('rotate');
   const isTouch=(navigator.maxTouchPoints||0)>0 || (window.matchMedia&&window.matchMedia('(pointer:coarse)').matches);
   let orientationPaused=false;
+  function isPortrait(){
+    if(window.matchMedia){
+      const mq=window.matchMedia('(orientation: portrait)');
+      if('matches' in mq) return mq.matches;
+    }
+    return window.innerHeight > window.innerWidth;
+  }
   function checkOrientation(){
-    // タッチ端末が縦持ちのときだけ回転を促す（PCはそのまま）
-    orientationPaused = isTouch && (window.innerHeight > window.innerWidth);
+    // タッチ端末が縦持ちのときだけ「横に倒して」と促す（横にすれば即プレイ可）
+    orientationPaused = isTouch && isPortrait();
     rotateScreen.classList.toggle('hidden', !orientationPaused);
     if(orientationPaused)pressCancel();
   }
+  // 横画面ロック（対応端末のみ・ユーザー操作時に best-effort）。倒すだけで済むように。
   function lockLandscape(){
+    if(!isTouch)return;
+    try{
+      const el=document.documentElement;
+      if(!document.fullscreenElement && el.requestFullscreen) el.requestFullscreen().catch(()=>{});
+    }catch(e){}
     try{ if(screen.orientation&&screen.orientation.lock) screen.orientation.lock('landscape').catch(()=>{}); }catch(e){}
   }
   window.addEventListener('orientationchange',checkOrientation);
   window.addEventListener('resize',checkOrientation);
+  if(window.matchMedia){
+    const mqp=window.matchMedia('(orientation: portrait)');
+    const onmq=()=>{checkOrientation();resize();};
+    if(mqp.addEventListener)mqp.addEventListener('change',onmq);
+    else if(mqp.addListener)mqp.addListener(onmq);
+  }
+  // 端末を横に倒した瞬間にロックも試みる（対応端末のみ）
+  window.addEventListener('orientationchange',()=>{ if(isTouch && !isPortrait()) lockLandscape(); });
 
   // ===== 画面遷移 =====
   const titleScreen=document.getElementById('titleScreen');
@@ -522,10 +677,12 @@
     reset();state=STATE.PLAY;
     titleScreen.classList.add('hidden');resultScreen.classList.add('hidden');
     touchControls.classList.remove('hidden');
+    Sound.unlock();Sound.startBgm();
   }
   function gameOver(){
     state=STATE.OVER;
     touchControls.classList.add('hidden');
+    Sound.stopBgm();
     const score=Math.floor(distance);
     const isNew=score>best;
     if(isNew){best=score;try{localStorage.setItem('edo_rhythm_best',String(best));}catch(e){}}
@@ -533,7 +690,7 @@
     finalScore.innerHTML=score.toLocaleString()+'<small>里</small>';
     document.getElementById('stCombo').textContent=maxCombo;
     document.getElementById('stAcc').textContent=acc+'%';
-    document.getElementById('stJump').textContent=jumpCount;
+    document.getElementById('stJump').textContent=backCount;
     bestText.innerHTML='最高記録 '+best.toLocaleString()+' 里'+(isNew?'<span class="newbest">新記録!</span>':'');
     rankText.innerHTML=SEAL+rankOf(score,maxCombo);
     resultScreen.classList.remove('hidden');
@@ -554,6 +711,9 @@
   function update(dt){
     const t=nowMs();const f=dt/16.67;
 
+    // タップで上がる目標速度へ、実速度をなめらかに追従（1タップのガクッを消す）
+    speedFx += (speedTarget-speedFx)*Math.min(1,0.09*f);
+
     // アンビエント
     for(const cl of clouds){cl.x-=cl.s*(1+speedFx)*f;if(cl.x<-cl.r*3){cl.x=W+cl.r*3;cl.y=H*(0.06+Math.random()*0.3);}}
     for(const p of petals){p.sway+=0.04*f;p.x+=(p.vx-speedFx*1.5)*f;p.y+=p.vy*f;
@@ -568,71 +728,54 @@
         introLabel = intro>1700?'3':intro>900?'2':intro>100?'1':'走れ！';
         lastStepAt=nowMs();   // 放置タイマーは「走れ！」の後から始める
       }else{
-        // 放置すると前のめりに倒れる（江戸走りは止まれば転ぶ）。
-        // ジャンプ中（空中）は走りが止まっても転ばない＝着地までは猶予。
+        // 止まってもう転ばない（ギミック待ちのために足を止められる）。
+        // 長く止まればテンポは仕切り直し＝再開してもノーペナルティ。
         const idle = lastStepAt>0 ? (t-lastStepAt) : 0;
-        const grace = (rhythmInterval>0?rhythmInterval:500)*1.4;
-        if(runner.onGround && idle>grace){
-          needSeed=true;combo=0;
-          const over=Math.min(1,(idle-grace)/650);
-          runner.tiltTarget=Math.max(runner.tiltTarget, 0.25+over*0.95);
-          if(runner.tilt>0.9){ gameOver(); return; }
-        }
+        const grace = (rhythmInterval>0?rhythmInterval:500)*1.6;
+        if(idle>grace){ needSeed=true; if(combo>0&&idle>grace*1.6)combo=0; }
 
-        // 障害物スポーン（進むほど頻繁になり、種類も増える）
-        obsTimer-=dt;
-        if(obsTimer<=0){
-          spawnObstacle();
-          obsTimer=Math.max(820,1500-distance/5)+Math.random()*1100;
-        }
+        // ギミックのスポーン：右端から十分離して一体ずつ。速さに依らず間隔を保つ。
+        const gap=segLen();
+        let rightMost=-Infinity;
+        for(const o of obstacles) if(o.x>rightMost)rightMost=o.x;
+        if(rightMost < W-gap) spawnObstacle();
 
-        speedFx=Math.max(0,speedFx-dt*0.0007);
+        speedTarget=Math.max(0,speedTarget-dt*0.0007);
 
         // 距離マイルストーン（500里ごと）
         const ms=Math.floor(distance/500);
         if(ms>lastMilestone){
           lastMilestone=ms;
           popups.push({text:(ms*500)+' 里 突破！',color:'#ffe27a',x:W/2,y:H*0.5,life:1.4,scale:1.5});
+          Sound.play('mile');
           flash=Math.min(1,flash+0.4);
         }
       }
 
-      // 進むのはタップの勢い（speedFx）だけ。放置すれば止まる。
-      const flow=speedFx*11;
+      // 前進はタップの勢い（speedFx）。後退中は逆向きに流してギミックから距離を取る。
+      let flow=speedFx*7;
+      if(backT>0){ backT-=dt; flow=-5.2; }
       scrollX+=flow*f; hillX+=flow*0.35*f;
 
-      // 障害物移動＆衝突（一撃でアウト）
+      // ギミック：時間差で危険化。危険な瞬間にその位置へ居ると一撃アウト。
       for(const o of obstacles){
-        o.x-=(flow+(o.roll||0))*f;
-        if(o.t==='barrel')o.spin=(o.spin||0)+(flow+o.roll)*0.02*f;
-        if(o.t==='crow')o.flap=(o.flap||0)+0.25*f;
+        o.phase+=dt;
+        o.x-=flow*f;
+        const st=obsState(o);
+        if(st==='warn' && o.prevSt!=='warn' && o.x<W && o.x+o.w>0) Sound.play('warn'); // 予告の合図音
+        o.prevSt=st;
         if(!o.hit){
-          const overlap=(o.x < runner.x+runner.w*0.40) && (o.x+o.w > runner.x-runner.w*0.40);
-          if(overlap){
-            let bad=false;
-            if(o.kind==='over'){          // 頭上：跳ぶと頭をぶつける
-              bad = runner.y < (o.y+o.h);
-            }else if(o.kind==='hole'){     // 穴：跳ばずに踏み抜くと落ちる
-              bad = runner.onGround;
-            }else{                          // 地上：跳び越えないとぶつかる
-              bad = (runner.y+runner.h) > (groundY-o.h+6);
-            }
-            if(bad){o.hit=true;hitObstacle(o);break;}
-          }
+          const overlapX=(o.x < runner.x+runner.w*0.35) && (o.x+o.w > runner.x-runner.w*0.35);
+          if(overlapX && st==='danger'){ o.hit=true;hitObstacle(o);break; }
         }
       }
-      obstacles=obstacles.filter(o=>o.x+o.w>-40);
+      obstacles=obstacles.filter(o=>o.x+o.w>-60 && o.x<W+400);
     }
 
-    // ランナー物理
-    if(!runner.onGround){
-      runner.vy+=gravity*f;runner.y+=runner.vy*f;
-      if(runner.y>=runner.baseY){runner.y=runner.baseY;runner.vy=0;runner.onGround=true;burstDust(runner.x,groundY,'#d8b888',6);
-        if(state===STATE.PLAY&&intro<=0)lastStepAt=nowMs();}   // 着地でリズム猶予を仕切り直し
-    }else{
-      runner.y=runner.baseY-runner.bounce*14;
-    }
+    // ランナー物理（地上のみ・上下は一歩の弾みだけ）
+    runner.y=runner.baseY-runner.bounce*8;
     runner.bounce*=Math.pow(0.82,f);
+    // 前傾は0へ戻す（後退時は一時的にのけ反り＝負値）
     runner.tilt+=(runner.tiltTarget-runner.tilt)*0.2*f;runner.tiltTarget*=Math.pow(0.9,f);
     // 脚はタップ（一歩）に反応して踏み出す。放置中は動かない。
     runner.legPhase += (runner.legTarget - runner.legPhase) * Math.min(1, 0.45*f);
@@ -735,81 +878,70 @@
     ctx.beginPath();ctx.moveTo(cx-s,cy+d*s*0.6);ctx.lineTo(cx,cy-d*s*0.6);ctx.lineTo(cx+s,cy+d*s*0.6);ctx.stroke();
     ctx.restore();
   }
+  // 地面の危険ゾーン表示
+  function zoneMark(o,col,a){
+    ctx.save();ctx.globalAlpha=a;ctx.fillStyle=col;
+    ctx.beginPath();ctx.ellipse(o.x+o.w/2,groundY+3,o.w*0.62,8,0,0,6.29);ctx.fill();
+    ctx.restore();
+  }
   function drawObstacles(){
+    const tms=nowMs();
     for(const o of obstacles){
-      const x=o.x,y=groundY-o.h;
-      ctx.save();
-      if(o.t==='rock'){
-        obShadow(o);
-        ctx.fillStyle='#8a8a8a';ctx.beginPath();
-        ctx.moveTo(x,y+o.h);ctx.lineTo(x+o.w*0.18,y+o.h*0.25);ctx.lineTo(x+o.w*0.55,y);
-        ctx.lineTo(x+o.w,y+o.h*0.4);ctx.lineTo(x+o.w,y+o.h);ctx.closePath();ctx.fill();
-        ctx.fillStyle='rgba(255,255,255,0.18)';ctx.fillRect(x+o.w*0.25,y+o.h*0.3,o.w*0.3,4);
-      }else if(o.t==='bucket'){
-        obShadow(o);
-        ctx.fillStyle='#9c6b3a';rrect(x,y,o.w,o.h,4);ctx.fill();
-        ctx.fillStyle='#7d5126';ctx.fillRect(x,y,o.w,6);
-        ctx.strokeStyle='#5e3c1b';ctx.lineWidth=3;ctx.strokeRect(x,y+o.h*0.45,o.w,3);
-      }else if(o.t==='crate'){
-        obShadow(o);
-        ctx.fillStyle='#b07c41';rrect(x,y,o.w,o.h,4);ctx.fill();
-        ctx.strokeStyle='#6e4a23';ctx.lineWidth=3;ctx.strokeRect(x,y,o.w,o.h);
-        ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x+o.w,y+o.h);ctx.moveTo(x+o.w,y);ctx.lineTo(x,y+o.h);ctx.stroke();
-      }else if(o.t==='tall'){
-        obShadow(o);
-        // 積み俵（縄で縛った米俵の段）
-        const seg=o.h/3;
-        for(let i=0;i<3;i++){const sy=y+i*seg;
-          ctx.fillStyle=i%2?'#d8b877':'#e6c98c';rrect(x,sy,o.w,seg-1,7);ctx.fill();
-          ctx.strokeStyle='#a37f3f';ctx.lineWidth=2;
-          ctx.beginPath();ctx.moveTo(x+o.w*0.32,sy);ctx.lineTo(x+o.w*0.32,sy+seg);ctx.moveTo(x+o.w*0.68,sy);ctx.lineTo(x+o.w*0.68,sy+seg);ctx.stroke();}
-      }else if(o.t==='barrel'){
-        obShadow(o);
-        // 転がる樽（回転する縦線で疾走感）
-        const cx=x+o.w/2, cy=groundY-o.h/2, r=o.w/2;
-        ctx.fillStyle='#a9772f';ctx.beginPath();ctx.arc(cx,cy,r,0,6.29);ctx.fill();
-        ctx.strokeStyle='#6e4a1c';ctx.lineWidth=3;ctx.stroke();
-        ctx.save();ctx.translate(cx,cy);ctx.rotate(o.spin||0);
-        ctx.strokeStyle='#7d5320';ctx.lineWidth=2.4;
-        for(let i=0;i<3;i++){const a=i*2.094;ctx.beginPath();ctx.moveTo(Math.cos(a)*r*0.2,Math.sin(a)*r*0.2);ctx.lineTo(Math.cos(a)*r*0.9,Math.sin(a)*r*0.9);ctx.stroke();}
-        ctx.restore();
-        ctx.strokeStyle='#c99a52';ctx.lineWidth=2;ctx.beginPath();ctx.arc(cx,cy,r*0.62,0,6.29);ctx.stroke();
-      }else if(o.t==='bar'){
-        // 関所の遮断棒（頭上・紅白）
-        ctx.fillStyle='#7a2b1c';ctx.fillRect(x+o.w-6,o.y,6,groundY-o.y);   // 右の支柱
-        const seg=o.w/4;
-        for(let i=0;i<4;i++){ctx.fillStyle=i%2?'#e23c00':'#fff';rrect(x+i*seg,o.y,seg,o.h,3);ctx.fill();}
-        ctx.strokeStyle='rgba(0,0,0,0.25)';ctx.lineWidth=1.5;rrect(x,o.y,o.w,o.h,3);ctx.stroke();
-      }else if(o.t==='crow'){
-        // 低く飛ぶ烏（羽ばたき）
-        const cx=x+o.w/2, cy=o.y+o.h*0.5, fl=Math.sin(o.flap||0)*8;
-        ctx.fillStyle='#20242c';
-        ctx.beginPath();ctx.ellipse(cx,cy,o.w*0.28,o.h*0.34,0,0,6.29);ctx.fill();  // 胴
-        ctx.beginPath();ctx.arc(cx-o.w*0.24,cy-3,6,0,6.29);ctx.fill();             // 頭
-        ctx.beginPath();ctx.moveTo(cx-o.w*0.3,cy-4);ctx.lineTo(cx-o.w*0.46,cy-2);ctx.lineTo(cx-o.w*0.3,cy+1);ctx.fill(); // 嘴
-        ctx.strokeStyle='#20242c';ctx.lineWidth=5;ctx.lineCap='round';
-        ctx.beginPath();ctx.moveTo(cx,cy-2);ctx.lineTo(cx+o.w*0.2,cy-fl);ctx.lineTo(cx+o.w*0.4,cy-2);ctx.stroke(); // 翼
-      }else if(o.t==='hole'){
-        // 落とし穴（地面の暗い穴）
-        const cx=x+o.w/2;
-        const g=ctx.createRadialGradient(cx,groundY+4,4,cx,groundY+4,o.w*0.55);
-        g.addColorStop(0,'#000');g.addColorStop(0.7,'#241a12');g.addColorStop(1,'rgba(36,26,18,0)');
-        ctx.fillStyle=g;ctx.beginPath();ctx.ellipse(cx,groundY+4,o.w*0.55,14,0,0,6.29);ctx.fill();
-        ctx.strokeStyle='#8a6a3a';ctx.lineWidth=3;ctx.beginPath();ctx.ellipse(cx,groundY+2,o.w*0.5,10,0,Math.PI,6.29);ctx.stroke();
-      }
-      ctx.restore();
+      const cx=o.x+o.w/2;
+      const s=obsK(o), st=s.st, k=s.k;
+      const blink=0.5+0.5*Math.sin(tms/70);
 
-      // 接近警告（種類ごとに合図を変える）
-      if(o.x>hitX-40&&o.x<hitX+340){
-        const blink=0.55+0.45*Math.sin(nowMs()/90);
-        if(o.kind==='over'){        // 跳ぶな＝青の下向き合図
-          drawChevron(x+o.w/2, o.y-16, 11, 'rgba(90,180,255,'+blink+')', true);
-        }else{                       // 跳べ＝赤の三角＋上向き合図
-          const cy=o.kind==='hole'? groundY-30 : y-20;
-          drawWarnTri(x+o.w/2, cy, 13, 'rgba(255,80,40,'+blink+')');
-          drawChevron(x+o.w/2, cy-24, 10, 'rgba(255,120,60,'+blink+')', false);
+      // 足元のゾーン：安全は薄く、予告で赤点滅、危険で真っ赤
+      if(st==='safe')      zoneMark(o,'#3a2a18',0.18);
+      else if(st==='warn') zoneMark(o,'rgba(255,90,40,'+(0.3+0.4*blink)+')',1);
+      else                 zoneMark(o,'rgba(255,40,20,0.85)',1);
+
+      // 予告の警告マーク（！）
+      if(st==='warn') drawWarnTri(cx, groundY-o.h-24, 12, 'rgba(255,80,40,'+(0.5+0.5*blink)+')');
+
+      ctx.save();
+      if(o.kind==='fall'){
+        // 落石：真上から降ってくる
+        const restY=groundY-o.h, topY=-o.h-20;
+        const by = st==='safe'?topY : st==='warn'? topY+(restY-topY)*(k*k) : restY;
+        if(st!=='safe'){
+          const y=by;
+          ctx.fillStyle='#8a8a8a';ctx.beginPath();
+          ctx.moveTo(o.x,y+o.h);ctx.lineTo(o.x+o.w*0.18,y+o.h*0.25);ctx.lineTo(o.x+o.w*0.55,y);
+          ctx.lineTo(o.x+o.w,y+o.h*0.4);ctx.lineTo(o.x+o.w,y+o.h);ctx.closePath();ctx.fill();
+          ctx.fillStyle='rgba(255,255,255,0.18)';ctx.fillRect(o.x+o.w*0.25,y+o.h*0.3,o.w*0.3,4);
+          if(st==='danger'&&k<0.35){ // 着弾の砂煙
+            ctx.strokeStyle='rgba(120,90,60,0.55)';ctx.lineWidth=3;ctx.lineCap='round';
+            ctx.beginPath();ctx.moveTo(o.x-4,groundY-4);ctx.lineTo(o.x-16,groundY-16);
+            ctx.moveTo(o.x+o.w+4,groundY-4);ctx.lineTo(o.x+o.w+16,groundY-16);ctx.stroke();
+          }
+        }
+      }else if(o.kind==='thrust'){
+        // 地槍：地面から突き出る
+        const up = st==='warn'? k*0.18 : st==='danger'? Math.min(1,k*3.2) : 0;
+        const h=o.h*up;
+        ctx.fillStyle='#5c4a33';ctx.fillRect(o.x-2,groundY-6,o.w+4,6);   // 台座
+        if(h>2){
+          const n=3, sw=o.w/n;
+          ctx.fillStyle= st==='danger' ? '#e2ddd0' : '#b9b2a2';
+          for(let i=0;i<n;i++){const sx=o.x+i*sw;
+            ctx.beginPath();ctx.moveTo(sx,groundY-6);ctx.lineTo(sx+sw/2,groundY-6-h);ctx.lineTo(sx+sw,groundY-6);ctx.closePath();ctx.fill();}
+          ctx.fillStyle='rgba(255,255,255,0.4)';
+          for(let i=0;i<n;i++){const sx=o.x+i*sw;
+            ctx.beginPath();ctx.moveTo(sx+sw*0.5,groundY-6-h);ctx.lineTo(sx+sw*0.6,groundY-6-h*0.5);ctx.lineTo(sx+sw*0.5,groundY-6-h*0.5);ctx.closePath();ctx.fill();}
+        }
+      }else{
+        // 関所の紅白棒：頭上から落ちて薙ぐ
+        const restY=groundY-44, topY=-24;
+        ctx.fillStyle='#5a3320';ctx.fillRect(o.x-8,groundY-98,7,98);ctx.fillRect(o.x+o.w+1,groundY-98,7,98); // 支柱
+        const by = st==='safe'?topY : st==='warn'? topY+(restY-topY)*(k*k) : restY;
+        if(st!=='safe'){
+          const seg=o.w/4;
+          for(let i=0;i<4;i++){ctx.fillStyle=i%2?'#e23c00':'#fff';rrect(o.x+i*seg,by,seg,16,3);ctx.fill();}
+          ctx.strokeStyle='rgba(0,0,0,0.25)';ctx.lineWidth=1.5;rrect(o.x,by,o.w,16,3);ctx.stroke();
         }
       }
+      ctx.restore();
     }
   }
   function obShadow(o){
@@ -831,15 +963,15 @@
     const lean=0.36+r.tilt;          // 深い前傾（江戸走り）
     ctx.rotate(lean);
 
-    const hipY=-30, shoY=-r.h+24;
+    const hipY=-36, shoY=-r.h+18;
     const SKIN='#f0d2a8', KIMONO='#2f6fb6', SLEEVE='#27598f', LIMB='#3a2a18';
 
     // 脚（ナンバ・膝を曲げた二関節、すり足ぎみ）
     function leg(sign){
       const ph=sign*s;
       const hipX=sign*3;
-      const kneeX=hipX+ph*13, kneeY=hipY+15-Math.abs(ph)*2;
-      const footX=kneeX+ph*11+(air?sign*4:5), footY=air? hipY+20 : -1;
+      const kneeX=hipX+ph*8, kneeY=hipY+15-Math.abs(ph)*1.4;
+      const footX=kneeX+ph*7+(air?sign*4:5), footY=air? hipY+20 : -1;
       ctx.strokeStyle=LIMB;ctx.lineWidth=8;ctx.lineCap='round';ctx.lineJoin='round';
       ctx.beginPath();ctx.moveTo(hipX,hipY);ctx.lineTo(kneeX,kneeY);ctx.lineTo(footX,footY);ctx.stroke();
       ctx.lineWidth=4;ctx.beginPath();ctx.moveTo(footX,footY);ctx.lineTo(footX+8,footY-1);ctx.stroke(); // 足袋
@@ -848,8 +980,8 @@
     function arm(sign){
       const ph=sign*s;
       const shX=sign*7, sy=shoY+12;
-      const elbowX=shX+ph*9+sign*5, elbowY=sy+12;
-      const handX=elbowX+ph*10+10, handY=elbowY-4-Math.abs(ph)*3;
+      const elbowX=shX+ph*6+sign*5, elbowY=sy+12;
+      const handX=elbowX+ph*6+10, handY=elbowY-4-Math.abs(ph)*2;
       ctx.strokeStyle=SLEEVE;ctx.lineWidth=9;ctx.lineCap='round';ctx.lineJoin='round';
       ctx.beginPath();ctx.moveTo(shX,sy);ctx.lineTo(elbowX,elbowY);ctx.stroke();      // 袖（上腕）
       ctx.strokeStyle=SKIN;ctx.lineWidth=6;
@@ -961,7 +1093,7 @@
     // 操作ヒント（プレイ画面のすぐ上に表示）
     ctx.save();ctx.textAlign='center';ctx.textBaseline='middle';ctx.globalAlpha=0.95;
     ctx.font='bold 17px sans-serif';ctx.lineWidth=4;ctx.strokeStyle='rgba(0,0,0,0.55)';
-    const h1='右下を一定のリズムで叩く＝走る（連打はダメ）', h2='地上の障害と穴は跳ぶ／頭上の棒・烏はくぐる';
+    const h1='右下を一定のリズムで叩く＝走る（連打はダメ／止まってもOK）', h2='足元が赤く光る危険な瞬間を避けろ。危ない時は左下で後退';
     ctx.strokeText(h1,W/2,cy+72);ctx.fillStyle='#fff';ctx.fillText(h1,W/2,cy+72);
     ctx.strokeText(h2,W/2,cy+98);ctx.fillText(h2,W/2,cy+98);
     ctx.restore();

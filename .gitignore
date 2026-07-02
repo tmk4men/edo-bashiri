@@ -7,3 +7,6 @@ desktop.ini
 # codex / scratch
 codex_out.txt
 codex_prompt.txt
+
+# 検証ハーネス（Chrome+puppeteer-core）
+scratchpad/
