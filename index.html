@@ -38,6 +38,9 @@
     font-family:"Hiragino Maru Gothic ProN","Yu Gothic Medium","Yu Gothic",sans-serif;
     user-select:none;-webkit-user-select:none;touch-action:none;color:#fff;}
   #wrap{position:relative;width:100vw;height:100dvh;display:flex;align-items:center;justify-content:center;background:#000;}
+  /* 縦持ちのタッチ端末では画面ごと90°回して常に横画面表示（向きロック不要） */
+  #wrap.force-landscape{position:fixed;top:0;left:0;width:100vh;height:100vw;
+    transform-origin:top left;transform:rotate(90deg) translateY(-100%);}
   canvas{display:block;background:#ffd9a0;touch-action:none;}
 
   /* ===== オーバーレイ共通 ===== */
@@ -293,7 +296,7 @@
   // ===== キャッシュバスター =====
   // version.txt を no-store で取得し、公開版が新しければ ?v= 付きで強制リロード。
   // これでHTMLがキャッシュされていても、次に開いた時に自動で最新へ更新される。
-  const BUILD='2026-07-02.214732';
+  const BUILD='2026-07-02.220357';
   console.log('江戸走り build:', BUILD);
   (function(){
     if(location.protocol!=='http:'&&location.protocol!=='https:')return;  // file://等では確認しない
@@ -310,6 +313,8 @@
 
   const canvas = document.getElementById('game');
   const ctx = canvas.getContext('2d');
+  const wrapEl = document.getElementById('wrap');
+  const isTouch=(navigator.maxTouchPoints||0)>0 || (window.matchMedia&&window.matchMedia('(pointer:coarse)').matches);
 
   // モーション軽減設定
   const reduceMotion = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
@@ -328,8 +333,12 @@
   function resize(){
     DPR=Math.min(window.devicePixelRatio||1,2);
     const vv=window.visualViewport;
-    W=Math.round(vv?vv.width:window.innerWidth);
-    H=Math.round(vv?vv.height:window.innerHeight);
+    const vw=Math.round(vv?vv.width:window.innerWidth);
+    const vh=Math.round(vv?vv.height:window.innerHeight);
+    // タッチ端末が縦持ちなら、画面ごと90°回して常に横画面で表示（倒す不要・固定不要）
+    const rotated = isTouch && (vh>vw);
+    wrapEl.classList.toggle('force-landscape', rotated);
+    if(rotated){ W=vh; H=vw; } else { W=vw; H=vh; }
     canvas.style.width=W+'px';canvas.style.height=H+'px';
     canvas.width=Math.floor(W*DPR);canvas.height=Math.floor(H*DPR);
     ctx.setTransform(DPR,0,0,DPR,0,0);
@@ -363,7 +372,7 @@
   let speedFx=0, speedTarget=0, scrollX=0, hillX=0, shakeT=0;
   let perfectCount=0, stepCount=0, backCount=0;
   let clouds=[], hills=[], petals=[], particles=[], popups=[];
-  let obstacles=[], obsTimer=0;
+  let obstacles=[], obsTimer=0, lastObsType='';
   let flash=0, redFlash=0;       // 画面フラッシュ
   let intro=0;                    // カウントダウン残り(ms)
   let introLabel='';
@@ -482,7 +491,7 @@
     distance=0;combo=0;maxCombo=0;lastMilestone=0;
     speedFx=0;speedTarget=0;scrollX=0;hillX=0;shakeT=0;flash=0;redFlash=0;
     perfectCount=0;stepCount=0;backCount=0;backT=0;
-    popups=[];particles=[];obstacles=[];obsTimer=0;
+    popups=[];particles=[];obstacles=[];obsTimer=0;lastObsType='';
     lastStepAt=-1;rhythmInterval=0;needSeed=true;fastMash=0;
     spawnAmbient();
     intro=2600;introLabel='3';
@@ -555,10 +564,10 @@
 
   // 後退：危険な瞬間だけ下がってやり過ごす。走りは乱れず転ばない。
   function back(){
-    backT=Math.max(backT,360);       // この間だけギミックから距離を取る
+    backT=Math.max(backT,200);       // 一歩だけ小さく下がる
     backCount++;
     needSeed=true;lastStepAt=nowMs();fastMash=0;   // 後退でリズムは仕切り直し（無ペナルティ）
-    runner.tiltTarget=Math.min(runner.tiltTarget,-0.28);  // のけ反る
+    runner.tiltTarget=Math.min(runner.tiltTarget,-0.22);  // 少しのけ反る
     runner.legTarget+=Math.PI;
     Sound.play('back');
     burstDust(runner.x+10,groundY,'#d8b888',7);
@@ -569,19 +578,25 @@
   // 各ギミックは「安全→予告(warn)→危険(danger)」を周期で繰り返す。
   // 危険な瞬間にその位置へ居ると即アウト。前進・後退で安全窓に合わせて通過する。
   function makeObs(t){
-    const o={x:W+90,t,hit:false,phase:Math.random()*1400};
-    if(t==='rock'){            // 落石：真上から降ってくる
-      o.kind='fall'; o.w=50; o.h=48; o.period=1550; o.warn=560; o.danger=300;
-    }else if(t==='spike'){     // 地槍：地面から突き出る
-      o.kind='thrust'; o.w=42; o.h=54; o.period=1350; o.warn=430; o.danger=430;
-    }else if(t==='bar'){       // 薙ぎ棒：関所の棒が横に薙ぎ払う
-      o.kind='sweep'; o.w=60; o.h=30; o.period=1750; o.warn=520; o.danger=380;
-    }
+    const spd=Math.max(0.7, 1 - distance*0.00006);   // 進むほど周期が速く＝難度上昇
+    const o={x:W+90,t,hit:false,phase:Math.random()*1600};
+    if(t==='rock'){        o.kind='fall';   o.w=50; o.h=48; o.period=1550*spd; o.warn=560*spd; o.danger=300*spd; }
+    else if(t==='volley'){ o.kind='fall2';  o.w=80; o.h=44; o.period=1950*spd; o.warn=560*spd; o.danger=660*spd; } // 連続落石＝危険が長い
+    else if(t==='spike'){  o.kind='thrust'; o.w=42; o.h=54; o.period=1350*spd; o.warn=430*spd; o.danger=430*spd; }
+    else if(t==='spikes'){ o.kind='thrust'; o.w=66; o.h=62; o.period=1550*spd; o.warn=470*spd; o.danger=560*spd; o.wide=true; } // 槍衾＝幅広
+    else if(t==='bar'){    o.kind='sweep';  o.w=60; o.h=30; o.period=1750*spd; o.warn=520*spd; o.danger=380*spd; }
+    else if(t==='swing'){  o.kind='swing';  o.w=52; o.h=0;  o.period=1500*spd; o.L=118; o.maxA=1.2; } // 振り子＝真下が危険(1周期に2回)
     return o;
   }
-  // 位相から状態を求める。周期の終盤が danger、その手前が warn。
+  // 位相から状態を求める。振り子だけは「真下＝危険」で1周期に危険窓が2回。
   function obsState(o){
     const p=o.phase%o.period;
+    if(o.kind==='swing'){
+      const a=Math.abs(Math.sin(2*Math.PI*(p/o.period)));  // 0=真下(危険) / 1=振り切り(安全)
+      if(a<0.24)return 'danger';
+      if(a<0.46)return 'warn';
+      return 'safe';
+    }
     const dStart=o.period-o.danger, wStart=dStart-o.warn;
     if(p>=dStart)return 'danger';
     if(p>=wStart)return 'warn';
@@ -589,6 +604,7 @@
   }
   // danger 進行度(0..1)：見た目のアニメ用
   function obsK(o){
+    if(o.kind==='swing')return {st:obsState(o),k:0};
     const p=o.phase%o.period;
     const dStart=o.period-o.danger, wStart=dStart-o.warn;
     if(p>=dStart)return {st:'danger',k:(p-dStart)/o.danger};
@@ -597,12 +613,18 @@
   }
   // ギミック間の距離：進むほど詰まるが、必ず捌ける間隔を保つ
   function segLen(){ return Math.max(W*0.44, W*0.66 - distance*0.05); }
+  // 序盤から多彩に。進むほど種類が増え、同じ型の連続は抑える。
   function spawnObstacle(){
     const d=distance;
-    const pool=['rock'];
-    if(d>180)pool.push('spike');
-    if(d>460)pool.push('bar');
-    obstacles.push(makeObs(pool[Math.floor(Math.random()*pool.length)]));
+    const pool=['rock','spike'];
+    if(d>140)pool.push('bar');
+    if(d>280)pool.push('swing');
+    if(d>420)pool.push('spikes');
+    if(d>560)pool.push('volley');
+    let t=pool[0];
+    for(let i=0;i<6;i++){ t=pool[Math.floor(Math.random()*pool.length)]; if(t!==lastObsType||pool.length<2)break; }
+    lastObsType=t;
+    obstacles.push(makeObs(t));
   }
   function hitObstacle(o){
     runner.bounce=0;runner.tiltTarget=1.35;
@@ -650,42 +672,19 @@
   renderMute();
   muteBtn.addEventListener('click',e=>{e.preventDefault();Sound.unlock();Sound.toggleMute();renderMute();});
 
-  // ===== 横画面の強制 =====
+  // ===== 画面の向き =====
+  // 縦持ちのタッチ端末は resize() が画面ごと90°回して常に横画面表示にする。
+  // フルスクリーン要求も向きロックもしない（固定を毎回解除する手間をなくす）。
   const rotateScreen=document.getElementById('rotate');
-  const isTouch=(navigator.maxTouchPoints||0)>0 || (window.matchMedia&&window.matchMedia('(pointer:coarse)').matches);
-  let orientationPaused=false;
-  function isPortrait(){
-    if(window.matchMedia){
-      const mq=window.matchMedia('(orientation: portrait)');
-      if('matches' in mq) return mq.matches;
-    }
-    return window.innerHeight > window.innerWidth;
-  }
-  function checkOrientation(){
-    // タッチ端末が縦持ちのときだけ「横に倒して」と促す（横にすれば即プレイ可）
-    orientationPaused = isTouch && isPortrait();
-    rotateScreen.classList.toggle('hidden', !orientationPaused);
-    if(orientationPaused)pressCancel();
-  }
-  // 横画面ロック（対応端末のみ・ユーザー操作時に best-effort）。倒すだけで済むように。
-  function lockLandscape(){
-    if(!isTouch)return;
-    try{
-      const el=document.documentElement;
-      if(!document.fullscreenElement && el.requestFullscreen) el.requestFullscreen().catch(()=>{});
-    }catch(e){}
-    try{ if(screen.orientation&&screen.orientation.lock) screen.orientation.lock('landscape').catch(()=>{}); }catch(e){}
-  }
-  window.addEventListener('orientationchange',checkOrientation);
-  window.addEventListener('resize',checkOrientation);
+  if(rotateScreen) rotateScreen.classList.add('hidden');   // 「横に倒して」案内は不要
+  const orientationPaused=false;                            // 向きによる一時停止はしない
+  function lockLandscape(){}                                // 互換のため残置（何もしない）
+  window.addEventListener('orientationchange',resize);
   if(window.matchMedia){
     const mqp=window.matchMedia('(orientation: portrait)');
-    const onmq=()=>{checkOrientation();resize();};
-    if(mqp.addEventListener)mqp.addEventListener('change',onmq);
-    else if(mqp.addListener)mqp.addListener(onmq);
+    if(mqp.addEventListener)mqp.addEventListener('change',resize);
+    else if(mqp.addListener)mqp.addListener(resize);
   }
-  // 端末を横に倒した瞬間にロックも試みる（対応端末のみ）
-  window.addEventListener('orientationchange',()=>{ if(isTouch && !isPortrait()) lockLandscape(); });
 
   // ===== 画面遷移 =====
   const titleScreen=document.getElementById('titleScreen');
@@ -696,7 +695,7 @@
 
   const touchControls=document.getElementById('touchControls');
   function startGame(){
-    lockLandscape();checkOrientation();
+    resize();
     reset();state=STATE.PLAY;
     titleScreen.classList.add('hidden');resultScreen.classList.add('hidden');
     touchControls.classList.remove('hidden');
@@ -777,7 +776,7 @@
 
       // 前進はタップの勢い（speedFx）。後退中は逆向きに流してギミックから距離を取る。
       let flow=speedFx*7;
-      if(backT>0){ backT-=dt; flow=-5.2; }
+      if(backT>0){ backT-=dt; flow=-3.4; }   // 後退は小刻み
       scrollX+=flow*f; hillX+=flow*0.35*f;
 
       // ギミック：時間差で危険化。危険な瞬間にその位置へ居ると一撃アウト。
@@ -785,7 +784,7 @@
         o.phase+=dt;
         o.x-=flow*f;
         const st=obsState(o);
-        if(st==='warn' && o.prevSt!=='warn' && o.x<W && o.x+o.w>0) Sound.play('warn'); // 予告の合図音
+        if(st==='warn' && o.prevSt!=='warn' && o.kind!=='swing' && o.x<W && o.x+o.w>0) Sound.play('warn'); // 予告の合図音
         o.prevSt=st;
         if(!o.hit){
           const overlapX=(o.x < runner.x+runner.w*0.35) && (o.x+o.w > runner.x-runner.w*0.35);
@@ -939,13 +938,27 @@
             ctx.moveTo(o.x+o.w+4,groundY-4);ctx.lineTo(o.x+o.w+16,groundY-16);ctx.stroke();
           }
         }
+      }else if(o.kind==='fall2'){
+        // 連続落石：複数の岩が続けて降る＝危険が長い。段差で降らせて迫力を出す。
+        const restY=groundY-o.h, topY=-o.h-30, n=3, bw=o.w/n;
+        for(let i=0;i<n;i++){
+          const bx=o.x+i*bw;
+          let kc=(st==='safe')?0 : (st==='warn'? k : 1) - i*0.16;
+          kc=Math.max(0,Math.min(1,kc));
+          if(kc<=0)continue;
+          const by=topY+(restY-topY)*(kc*kc);
+          ctx.fillStyle='#8a8a8a';ctx.beginPath();
+          ctx.moveTo(bx,by+o.h);ctx.lineTo(bx+bw*0.2,by+o.h*0.28);ctx.lineTo(bx+bw*0.55,by);
+          ctx.lineTo(bx+bw-3,by+o.h*0.4);ctx.lineTo(bx+bw-3,by+o.h);ctx.closePath();ctx.fill();
+          ctx.fillStyle='rgba(255,255,255,0.16)';ctx.fillRect(bx+bw*0.28,by+o.h*0.32,bw*0.28,3);
+        }
       }else if(o.kind==='thrust'){
-        // 地槍：地面から突き出る
+        // 地槍／槍衾：地面から突き出る（wideは本数多め）
         const up = st==='warn'? k*0.18 : st==='danger'? Math.min(1,k*3.2) : 0;
         const h=o.h*up;
         ctx.fillStyle='#5c4a33';ctx.fillRect(o.x-2,groundY-6,o.w+4,6);   // 台座
         if(h>2){
-          const n=3, sw=o.w/n;
+          const n=o.wide?5:3, sw=o.w/n;
           ctx.fillStyle= st==='danger' ? '#e2ddd0' : '#b9b2a2';
           for(let i=0;i<n;i++){const sx=o.x+i*sw;
             ctx.beginPath();ctx.moveTo(sx,groundY-6);ctx.lineTo(sx+sw/2,groundY-6-h);ctx.lineTo(sx+sw,groundY-6);ctx.closePath();ctx.fill();}
@@ -953,6 +966,24 @@
           for(let i=0;i<n;i++){const sx=o.x+i*sw;
             ctx.beginPath();ctx.moveTo(sx+sw*0.5,groundY-6-h);ctx.lineTo(sx+sw*0.6,groundY-6-h*0.5);ctx.lineTo(sx+sw*0.5,groundY-6-h*0.5);ctx.closePath();ctx.fill();}
         }
+      }else if(o.kind==='swing'){
+        // 振り子（鎖分銅）：真下を通る瞬間が危険。1周期に2回来る＝合間を狙って通過。
+        const p=o.phase%o.period;
+        const th=Math.sin(2*Math.PI*(p/o.period))*o.maxA;
+        const pivotX=o.x+o.w/2, pivotY=groundY-o.L-46;
+        const ballX=pivotX+Math.sin(th)*o.L, ballY=pivotY+Math.cos(th)*o.L;
+        // やぐら（梁＋左右の柱）
+        ctx.fillStyle='#5a3320';
+        ctx.fillRect(pivotX-42,pivotY-8,84,8);
+        ctx.fillRect(pivotX-42,pivotY-8,6,groundY-(pivotY-8));
+        ctx.fillRect(pivotX+36,pivotY-8,6,groundY-(pivotY-8));
+        // 鎖
+        ctx.strokeStyle='#9a9a9a';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(pivotX,pivotY);ctx.lineTo(ballX,ballY);ctx.stroke();
+        // 分銅（鉄球）
+        ctx.fillStyle= st==='danger'?'#2e2e2e':'#454545';
+        ctx.beginPath();ctx.arc(ballX,ballY,15,0,6.29);ctx.fill();
+        ctx.strokeStyle='#1c1c1c';ctx.lineWidth=2;ctx.stroke();
+        ctx.fillStyle='rgba(255,255,255,0.22)';ctx.beginPath();ctx.arc(ballX-5,ballY-5,4,0,6.29);ctx.fill();
       }else{
         // 関所の紅白棒：頭上から落ちて薙ぐ
         const restY=groundY-44, topY=-24;
@@ -1150,7 +1181,7 @@
     requestAnimationFrame(loop);
   }
 
-  resize();spawnAmbient();checkOrientation();
+  resize();spawnAmbient();
   requestAnimationFrame(loop);
 })();
 </script>
