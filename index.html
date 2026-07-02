@@ -338,7 +338,7 @@
   // ===== キャッシュバスター =====
   // version.txt を no-store で取得し、公開版が新しければ ?v= 付きで強制リロード。
   // これでHTMLがキャッシュされていても、次に開いた時に自動で最新へ更新される。
-  const BUILD='2026-07-02.224711';
+  const BUILD='2026-07-02.230335';
   console.log('江戸走り build:', BUILD);
   (function(){
     if(location.protocol!=='http:'&&location.protocol!=='https:')return;  // file://等では確認しない
@@ -380,7 +380,15 @@
     // タッチ端末が縦持ちなら、画面ごと90°回して常に横画面で表示（倒す不要・固定不要）
     const rotated = isTouch && (vh>vw);
     wrapEl.classList.toggle('force-landscape', rotated);
-    if(rotated){ W=vh; H=vw; } else { W=vw; H=vh; }
+    if(rotated){
+      W=vh; H=vw;
+      // 回転コンテナを「実際に見えているビューポート」のpxに固定（100vh/100vwだとアドレスバー分だけ
+      // はみ出てボタンが画面外に出るのを防ぐ）。回転後: 幅=縦の高さ, 高さ=縦の幅。
+      wrapEl.style.width=vh+'px'; wrapEl.style.height=vw+'px';
+    }else{
+      W=vw; H=vh;
+      wrapEl.style.width=''; wrapEl.style.height='';
+    }
     canvas.style.width=W+'px';canvas.style.height=H+'px';
     canvas.width=Math.floor(W*DPR);canvas.height=Math.floor(H*DPR);
     ctx.setTransform(DPR,0,0,DPR,0,0);
