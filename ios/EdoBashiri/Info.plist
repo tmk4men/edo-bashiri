@@ -31,7 +31,7 @@
     <key>UILaunchScreen</key>
     <dict>
         <key>UIColorName</key>
-        <string></string>
+        <string>LaunchBackground</string>
     </dict>
 
     <!-- 縦・横どちらも対応（ゲームはレスポンシブ） -->
