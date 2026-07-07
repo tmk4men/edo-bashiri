@@ -20,12 +20,16 @@ targets:
     platform: iOS
     sources:
       - path: EdoBashiri
+        excludes:
+          - "EdoBashiri.entitlements"
+          - "Info.plist"
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.edobashiri
         PRODUCT_NAME: EdoBashiri
         INFOPLIST_FILE: EdoBashiri/Info.plist
         GENERATE_INFOPLIST_FILE: NO
+        CODE_SIGN_ENTITLEMENTS: EdoBashiri/EdoBashiri.entitlements
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         TARGETED_DEVICE_FAMILY: "1,2"
         SWIFT_VERSION: "5.0"

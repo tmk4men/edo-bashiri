@@ -335,7 +335,7 @@
   // ===== キャッシュバスター =====
   // version.txt を no-store で取得し、公開版が新しければ ?v= 付きで強制リロード。
   // これでHTMLがキャッシュされていても、次に開いた時に自動で最新へ更新される。
-  const BUILD='2026-07-07.115032';
+  const BUILD='2026-07-07.132418';
   console.log('江戸走り build:', BUILD);
   (function(){
     if(location.protocol!=='http:'&&location.protocol!=='https:')return;  // file://等では確認しない
@@ -579,7 +579,7 @@
     speedTarget=Math.min(1,speedTarget+0.45);   // タップの勢い（実速度はここへ滑らかに追従）
     Sound.play(kind==='PERFECT'?'perfect':'step');
     burstDust(runner.x-6,groundY,kind==='PERFECT'?'#fff3c0':'#d8b888',kind==='PERFECT'?9:5);
-    if(kind==='PERFECT'){perfectCount++;flash=Math.min(1,flash+0.5);
+    if(kind==='PERFECT'){perfectCount++;flash=Math.min(1,flash+0.5);nativeHaptic('light');
       popups.push(mkPop('ピタリ！',var0('--green','#46e06a'),1.25));sparkle(runner.x,runner.y+10);}
     else{popups.push(mkPop('よし',var0('--gold','#ffcf3f'),1));}
   }
@@ -728,11 +728,18 @@
   const rankText=document.getElementById('rankText');
 
   const touchControls=document.getElementById('touchControls');
+
+  // ===== ネイティブ橋渡し（iOSアプリのときだけ作動。web/Androidでは自動的に無効） =====
+  function nativeHaptic(kind){try{window.webkit&&window.webkit.messageHandlers&&window.webkit.messageHandlers.haptic&&window.webkit.messageHandlers.haptic.postMessage(kind);}catch(e){}}
+  function nativeGC(action,value){try{window.webkit&&window.webkit.messageHandlers&&window.webkit.messageHandlers.gc&&window.webkit.messageHandlers.gc.postMessage({action:action,value:(value==null?0:value)});}catch(e){}}
+  nativeGC('access',true);   // 起動時（タイトル）はGame Centerのアクセスポイントを表示
+
   function startGame(){
     resize();
     reset();state=STATE.PLAY;
     titleScreen.classList.add('hidden');resultScreen.classList.add('hidden');
     touchControls.classList.remove('hidden');
+    nativeGC('access',false);   // プレイ中はアクセスポイントを隠す（画面を邪魔しない）
     Sound.unlock();Sound.startBgm();
   }
   function gameOver(){
@@ -742,6 +749,9 @@
     const score=Math.floor(distance);
     const isNew=score>best;
     if(isNew){best=score;try{localStorage.setItem('edo_rhythm_best',String(best));}catch(e){}}
+    nativeHaptic(isNew?'success':'error');   // 新記録は成功、転倒はエラーの触覚
+    nativeGC('score',best);                  // Game Center へ自己ベストを送信
+    nativeGC('access',true);                 // リザルトではアクセスポイントを再表示
     const acc=stepCount>0?Math.round(perfectCount/stepCount*100):0;
     finalScore.innerHTML=score.toLocaleString()+'<small>里</small>';
     document.getElementById('stCombo').textContent=maxCombo;
@@ -812,6 +822,7 @@
         if(ms>lastMilestone){
           lastMilestone=ms;
           popups.push({text:(ms*500)+' 里 突破！',color:'#ffe27a',x:W/2,y:H*0.5,life:1.4,scale:1.5});
+          nativeHaptic('light');
           Sound.play('mile');
           flash=Math.min(1,flash+0.4);
         }
