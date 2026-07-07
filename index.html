@@ -38,9 +38,6 @@
     font-family:"Hiragino Maru Gothic ProN","Yu Gothic Medium","Yu Gothic",sans-serif;
     user-select:none;-webkit-user-select:none;touch-action:none;color:#fff;}
   #wrap{position:relative;width:100vw;height:100dvh;display:flex;align-items:center;justify-content:center;background:#000;}
-  /* 縦持ちのタッチ端末では画面ごと90°回して常に横画面表示（向きロック不要） */
-  #wrap.force-landscape{position:fixed;top:0;left:0;width:100vh;height:100vw;
-    transform-origin:top left;transform:rotate(90deg) translateY(-100%);}
   canvas{display:block;background:#ffd9a0;touch-action:none;}
 
   /* ===== オーバーレイ共通 ===== */
@@ -338,7 +335,7 @@
   // ===== キャッシュバスター =====
   // version.txt を no-store で取得し、公開版が新しければ ?v= 付きで強制リロード。
   // これでHTMLがキャッシュされていても、次に開いた時に自動で最新へ更新される。
-  const BUILD='2026-07-02.230335';
+  const BUILD='2026-07-07.115032';
   console.log('江戸走り build:', BUILD);
   (function(){
     if(location.protocol!=='http:'&&location.protocol!=='https:')return;  // file://等では確認しない
@@ -355,9 +352,6 @@
 
   const canvas = document.getElementById('game');
   const ctx = canvas.getContext('2d');
-  const wrapEl = document.getElementById('wrap');
-  const isTouch=(navigator.maxTouchPoints||0)>0 || (window.matchMedia&&window.matchMedia('(pointer:coarse)').matches);
-
   // モーション軽減設定
   const reduceMotion = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
 
@@ -377,18 +371,8 @@
     const vv=window.visualViewport;
     const vw=Math.round(vv?vv.width:window.innerWidth);
     const vh=Math.round(vv?vv.height:window.innerHeight);
-    // タッチ端末が縦持ちなら、画面ごと90°回して常に横画面で表示（倒す不要・固定不要）
-    const rotated = isTouch && (vh>vw);
-    wrapEl.classList.toggle('force-landscape', rotated);
-    if(rotated){
-      W=vh; H=vw;
-      // 回転コンテナを「実際に見えているビューポート」のpxに固定（100vh/100vwだとアドレスバー分だけ
-      // はみ出てボタンが画面外に出るのを防ぐ）。回転後: 幅=縦の高さ, 高さ=縦の幅。
-      wrapEl.style.width=vh+'px'; wrapEl.style.height=vw+'px';
-    }else{
-      W=vw; H=vh;
-      wrapEl.style.width=''; wrapEl.style.height='';
-    }
+    // 縦でも横でも、実ビューポートにそのまま素直に合わせる（回転はしない＝崩れ防止）
+    W=vw; H=vh;
     canvas.style.width=W+'px';canvas.style.height=H+'px';
     canvas.width=Math.floor(W*DPR);canvas.height=Math.floor(H*DPR);
     ctx.setTransform(DPR,0,0,DPR,0,0);
@@ -1254,12 +1238,18 @@
     ctx.lineWidth=8;ctx.strokeStyle='rgba(0,0,0,0.5)';ctx.strokeText(introLabel,0,0);
     ctx.fillStyle=big?'#46e06a':'#ffcf3f';ctx.fillText(introLabel,0,0);
     ctx.restore();
-    // 操作ヒント（プレイ画面のすぐ上に表示）
+    // 操作ヒント（プレイ画面のすぐ上に表示）。画面幅に合わせて自動縮小＝縦画面でもはみ出さない
     ctx.save();ctx.textAlign='center';ctx.textBaseline='middle';ctx.globalAlpha=0.95;
-    ctx.font='bold 17px sans-serif';ctx.lineWidth=4;ctx.strokeStyle='rgba(0,0,0,0.55)';
     const h1='右下を一定のリズムで叩く＝走る（連打も放置もダメ）', h2='足元が赤く光る危険な瞬間を避けろ。危ない時は左下で後退';
+    let fs=17;
+    ctx.font='bold '+fs+'px sans-serif';
+    const wMax=Math.max(ctx.measureText(h1).width,ctx.measureText(h2).width);
+    const avail=W*0.92;
+    if(wMax>avail){ fs=Math.max(11,Math.floor(fs*avail/wMax)); ctx.font='bold '+fs+'px sans-serif'; }
+    const lh=Math.round(fs*1.5);
+    ctx.lineWidth=4;ctx.strokeStyle='rgba(0,0,0,0.55)';
     ctx.strokeText(h1,W/2,cy+72);ctx.fillStyle='#fff';ctx.fillText(h1,W/2,cy+72);
-    ctx.strokeText(h2,W/2,cy+98);ctx.fillText(h2,W/2,cy+98);
+    ctx.strokeText(h2,W/2,cy+72+lh);ctx.fillText(h2,W/2,cy+72+lh);
     ctx.restore();
   }
 
