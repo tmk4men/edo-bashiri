@@ -10,3 +10,6 @@ codex_prompt.txt
 
 # 検証ハーネス（Chrome+puppeteer-core）
 scratchpad/
+
+# アイコンの元画像（加工前・重いので管理外。加工済みは ios の appiconset に格納）
+アイコン.png
