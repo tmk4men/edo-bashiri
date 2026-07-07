@@ -1,0 +1,14 @@
+# XcodeGen が project.yml から生成するので、.xcodeproj はコミットしない（再生成可能）
+*.xcodeproj
+
+# Xcode / build
+build/
+DerivedData/
+*.xcworkspace
+!default.xcworkspace
+xcuserdata/
+*.xcuserstate
+.DS_Store
+
+# CocoaPods（AdMob 導入時に使う場合）
+Pods/
