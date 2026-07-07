@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- 安全域(中央66dp)に収まるよう配置。日の丸＋金のリング＋街道の線＝江戸/走りの世界観 -->
+    <!-- 金のリング -->
+    <path
+        android:fillColor="#FFCF3F"
+        android:pathData="M54,26 m-25,0 a25,25 0 1,0 50,0 a25,25 0 1,0 -50,0 z" />
+    <!-- 赤い日の丸 -->
+    <path
+        android:fillColor="#E23C00"
+        android:pathData="M54,26 m-20,0 a20,20 0 1,0 40,0 a20,20 0 1,0 -40,0 z" />
+    <!-- 街道（石畳ライン） -->
+    <path
+        android:strokeColor="#FFCF3F"
+        android:strokeWidth="5"
+        android:strokeLineCap="round"
+        android:pathData="M30,72 L78,72" />
+    <path
+        android:strokeColor="#B56200"
+        android:strokeWidth="5"
+        android:strokeLineCap="round"
+        android:pathData="M34,82 L74,82" />
+</vector>
